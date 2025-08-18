@@ -2,10 +2,7 @@
 nixPkgs = ["nodejs_18", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci"]
-
-[phases.build]
-cmds = ["echo 'No build step required for Node.js'"]
+cmds = ["npm install"]
 
 [start]
 cmd = "npm start"

@@ -1,11 +1,13 @@
 // API service for communicating with MongoDB backend
-const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5002') + '/api';
+// TEMPORARILY HARDCODED for debugging - will remove after fixing env var
+const API_BASE_URL = 'https://insurance-marketplace-production.up.railway.app/api';
 
 // Debug logging for API URL
 console.log('🔍 API Debug Info:');
 console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 console.log('Final API_BASE_URL:', API_BASE_URL);
 console.log('Environment:', process.env.NODE_ENV);
+console.log('⚠️ Using hardcoded API URL for debugging');
 
 class ApiService {
   constructor() {

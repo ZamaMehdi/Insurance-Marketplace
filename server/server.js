@@ -131,6 +131,16 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint for Railway
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Test socket endpoint
 app.get('/socket-test', (req, res) => {
   res.json({ 

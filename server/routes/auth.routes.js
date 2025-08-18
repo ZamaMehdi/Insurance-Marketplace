@@ -73,9 +73,19 @@ router.post('/register', authLimiter, [
     .matches(/^[\+]?[1-9][\d]{0,15}$/)
     .withMessage('Please provide a valid phone number'),
   body('companyName')
-    .optional()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Company name must be between 2 and 100 characters'),
+    .custom((value, { req }) => {
+      // Company name is required for providers, optional for clients
+      if (req.body.role === 'provider') {
+        if (!value || value.trim().length < 2) {
+          throw new Error('Company name is required for providers and must be at least 2 characters');
+        }
+        if (value.length > 100) {
+          throw new Error('Company name must be less than 100 characters');
+        }
+      }
+      return true;
+    })
+    .withMessage('Company name validation failed'),
   body('location')
     .optional()
     .isLength({ min: 2, max: 100 })

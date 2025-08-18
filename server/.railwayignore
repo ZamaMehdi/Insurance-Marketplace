@@ -1,0 +1,19 @@
+# Don't ignore these important files
+!package.json
+!package-lock.json
+!server.js
+!routes/
+!models/
+!services/
+!middleware/
+!utils/
+!scripts/
+
+# Ignore development files
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+uploads/
+.git/

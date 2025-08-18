@@ -74,10 +74,10 @@ const BrowseRequests = () => {
 
   // Debug: Log requests state changes
   useEffect(() => {
-    console.log('BrowseRequests: Requests state changed:', requests);
-    console.log('Number of requests:', requests.length);
+    // console.log('BrowseRequests: Requests state changed:', requests);
+    // console.log('Number of requests:', requests.length);
     if (requests.length > 0) {
-      console.log('First request structure:', requests[0]);
+      // console.log('First request structure:', requests[0]);
     }
   }, [requests]);
 
@@ -85,7 +85,7 @@ const BrowseRequests = () => {
     if (socket) {
       // Listen for new insurance request notifications
       socket.on('insurance_request_notification', (data) => {
-        console.log('BrowseRequests: New insurance request notification:', data);
+        // console.log('BrowseRequests: New insurance request notification:', data);
         toast.success(`New request available: ${data.title} - $${data.amount?.toLocaleString()}`);
         fetchRequests(); // Refresh the requests list
       });
@@ -99,18 +99,18 @@ const BrowseRequests = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      console.log('BrowseRequests: Loading available requests from MongoDB API');
+      // console.log('BrowseRequests: Loading available requests from MongoDB API');
       
       // Get requests from MongoDB API - use provider-specific endpoint
       const response = await apiService.getProviderAvailableRequests({
         limit: 50
       });
       
-      console.log('API Response:', response);
+      // console.log('API Response:', response);
       
       if (response.requests) {
         setRequests(response.requests);
-        console.log('Requests loaded from MongoDB API:', response.requests.length);
+        // console.log('Requests loaded from MongoDB API:', response.requests.length);
       } else {
         console.error('Invalid API response format:', response);
         setRequests([]);
@@ -131,7 +131,7 @@ const BrowseRequests = () => {
     if (!selectedRequest || !user) return;
 
     try {
-      console.log('BrowseRequests: Submitting bid to shared store');
+      // console.log('BrowseRequests: Submitting bid to shared store');
       
       // Submit bid to shared data store
       const newBid = await apiService.submitBid({
@@ -145,7 +145,7 @@ const BrowseRequests = () => {
         conditions: bidFormData.conditions
       });
       
-      console.log('Bid submitted successfully:', newBid);
+      // console.log('Bid submitted successfully:', newBid);
       
       // Refresh the requests to show updated bid count
       fetchRequests();

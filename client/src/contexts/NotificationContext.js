@@ -143,10 +143,10 @@ export const NotificationProvider = ({ children }) => {
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔔 Fetching notifications from backend...');
+      // console.log('🔔 Fetching notifications from backend...');
       
       const response = await apiService.getNotifications();
-      console.log('🔔 Backend notifications response:', response);
+      // console.log('🔔 Backend notifications response:', response);
       
       if (response && response.notifications) {
         // Transform backend notifications to frontend format
@@ -169,8 +169,8 @@ export const NotificationProvider = ({ children }) => {
         const unreadNotifications = transformedNotifications.filter(notif => !notif.read);
         setUnreadCount(unreadNotifications.length);
         
-        console.log('🔔 Transformed notifications:', transformedNotifications);
-        console.log('🔔 Unread count:', unreadNotifications.length);
+        // console.log('🔔 Transformed notifications:', transformedNotifications);
+        // console.log('🔔 Unread count:', unreadNotifications.length);
       }
     } catch (error) {
       console.error('❌ Error fetching notifications:', error);

@@ -54,7 +54,7 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 function App() {
   // Clear MockDataStore localStorage data since we're no longer using it
   useEffect(() => {
-    console.log('🧹 App: Clearing MockDataStore localStorage data');
+    // console.log('🧹 App: Clearing MockDataStore localStorage data');
     localStorage.removeItem('insurance_requests');
     localStorage.removeItem('insurance_bids');
     localStorage.removeItem('insurance_accepted_offers');

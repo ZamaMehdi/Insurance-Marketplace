@@ -102,17 +102,17 @@ const Dashboard = () => {
   };
 
   const loadDashboardData = async () => {
-    console.log('🚀 loadDashboardData function called!');
+    // console.log('🚀 loadDashboardData function called!');
     
     // Prevent duplicate calls using ref instead of state
     if (isLoadingRef.current) {
-      console.log('Dashboard: Already loading data (ref), skipping duplicate call');
+      // console.log('Dashboard: Already loading data (ref), skipping duplicate call');
       return;
     }
     
     // Safety check - ensure user is properly authenticated
     if (!user || !user._id) {
-      console.log('Dashboard: User not authenticated, skipping data load');
+      // console.log('Dashboard: User not authenticated, skipping data load');
       return;
     }
     
@@ -121,10 +121,10 @@ const Dashboard = () => {
     setIsLoading(true);
 
     try {
-      console.log('🚀 Dashboard: Starting to load dashboard data...');
-      console.log('Dashboard: Loading dashboard data for user:', user);
-      console.log('Dashboard: User object structure:', JSON.stringify(user, null, 2));
-      console.log('Dashboard: User ID:', user?._id, 'User.user ID:', user?.user?._id);
+      // console.log('🚀 Dashboard: Starting to load dashboard data...');
+      // console.log('Dashboard: Loading dashboard data for user:', user);
+      // console.log('Dashboard: Dashboard: User object structure:', JSON.stringify(user, null, 2));
+      // console.log('Dashboard: User ID:', user?._id, 'User.user ID:', user?.user?._id);
       
       // Get the actual user ID from the nested structure
       const userId = user?.user?._id || user?._id;

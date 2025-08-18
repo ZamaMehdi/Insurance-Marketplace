@@ -1,13 +1,5 @@
 // API service for communicating with MongoDB backend
-// TEMPORARILY HARDCODED for debugging - will remove after fixing env var
-const API_BASE_URL = 'https://insurance-marketplace-production.up.railway.app/api';
-
-// Debug logging for API URL
-console.log('🔍 API Debug Info:');
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('Final API_BASE_URL:', API_BASE_URL);
-console.log('Environment:', process.env.NODE_ENV);
-console.log('⚠️ Using hardcoded API URL for debugging');
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5002') + '/api';
 
 class ApiService {
   constructor() {
@@ -52,14 +44,6 @@ class ApiService {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        // Log detailed error information for debugging
-        console.log('🔍 API Error Details:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: response.url,
-          errorData: errorData
-        });
         
         // Handle specific HTTP status codes
         if (response.status === 429) {
@@ -255,11 +239,7 @@ class ApiService {
     return await this.request('/requests/client/my-requests');
   }
 
-  async createSampleData() {
-    return await this.request('/requests/sample-data', {
-      method: 'POST'
-    });
-  }
+
 
   // Bid endpoints
   async submitBid(bidData) {

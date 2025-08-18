@@ -26,7 +26,7 @@ const Home = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <Link
-                to="/register"
+                to="/signup"
                 className="inline-flex items-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-colors"
               >
                 Get Started

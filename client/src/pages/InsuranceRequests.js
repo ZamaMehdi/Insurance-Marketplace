@@ -385,29 +385,7 @@ const InsuranceRequests = () => {
                 New Request
               </button>
               
-          <button
-                onClick={async () => {
-                  try {
-                    setLoading(true);
-                    const result = await apiService.createSampleData();
-                    if (result.success) {
-                      toast.success(result.message);
-                      fetchRequests(); // Refresh the list
-                    } else {
-                      toast.error('Failed to create sample data');
-                    }
-                  } catch (error) {
-                    console.error('Error creating sample data:', error);
-                    toast.error('Failed to create sample data');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Create Sample Data
-          </button>
+
             </div>
         </div>
 
@@ -440,10 +418,7 @@ const InsuranceRequests = () => {
             {/* Category Filter */}
             <select
               value={selectedCategory}
-              onChange={(e) => {
-                console.log('🔍 Category changed from', selectedCategory, 'to', e.target.value);
-                setSelectedCategory(e.target.value);
-              }}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {categories.map(category => (

@@ -9,7 +9,6 @@ import {
   Clock,
   DollarSign, 
   Plus,
-  RefreshCw,
   MessageSquare,
   MessageCircle,
   Eye,
@@ -39,64 +38,26 @@ const Dashboard = () => {
 
   // Load dashboard data when user changes
   useEffect(() => {
-    console.log('🔍 Dashboard useEffect triggered with:', { 
-      hasUser: !!user, 
-      userRole: user?.role,
-      authLoading, 
-      dataAlreadyLoaded: dataLoadedRef.current 
-    });
-    
     // Only run once when user is loaded and auth is complete
     if (user && !authLoading && !dataLoadedRef.current) {
-      console.log('✅ Dashboard useEffect - user loaded, setting up dashboard');
-      // Don't mark as loaded yet - wait for successful data loading
       loadDashboardData();
-    } else {
-      console.log('⏳ Dashboard useEffect - waiting for user or auth to complete:', { 
-        hasUser: !!user, 
-        authLoading, 
-        dataAlreadyLoaded: dataLoadedRef.current
-      });
     }
   }, [user, authLoading]); // Only depend on user and authLoading
 
   // Setup socket listeners when user and socket are available
   useEffect(() => {
     if (user && socket) {
-      console.log('Dashboard: Setting up socket listeners');
       setupSocketListeners();
     }
   }, [user, socket]);
 
-  // Debug useEffect to monitor state changes
-  useEffect(() => {
-    console.log('🔍 Dashboard Debug - State changed:', {
-      hasUser: !!user,
-      userType: user ? typeof user : 'null',
-      userKeys: user ? Object.keys(user) : 'null',
-      authLoading,
-      isLoading
-    });
 
-    // Reset loading state if it gets stuck for too long
-    if (isLoading) {
-      const timeout = setTimeout(() => {
-        if (isLoading) {
-          console.log('⚠️ Dashboard: Loading state stuck for 10 seconds, resetting...');
-          setIsLoading(false);
-        }
-      }, 10000); // 10 seconds timeout
-
-      return () => clearTimeout(timeout);
-    }
-  }, [user, authLoading, isLoading]);
 
 
 
   const setupSocketListeners = () => {
     // Safety check - if user is null, don't proceed
     if (!user) {
-      console.log('User is null, skipping socket setup');
       return;
     }
 
@@ -104,35 +65,30 @@ const Dashboard = () => {
     const userId = user?.user?._id || user?._id;
     
     if (!userId) {
-      console.log('User ID not found, skipping socket setup');
       return;
     }
 
     if (socket) {
       // Listen for new insurance requests
       socket.on('insurance_request_notification', (data) => {
-        console.log('Dashboard: New insurance request notification:', data);
         toast.success(`New insurance request: ${data.title}`);
         loadDashboardData();
       });
 
       // Listen for new bids
       socket.on('bid_notification', (data) => {
-        console.log('Dashboard: New bid notification:', data);
         toast.success(`New bid received: $${data.amount?.toLocaleString()}`);
         loadDashboardData();
       });
 
       // Listen for bid acceptance notifications
       socket.on('bid_accepted_notification', (data) => {
-        console.log('Dashboard: Bid accepted notification:', data);
         toast.success(`Your bid was accepted: ${data.message}`);
         loadDashboardData();
       });
 
       // Listen for new messages
       socket.on('new_message', (data) => {
-        console.log('Dashboard: New message notification:', data);
         toast.success('New message received');
         loadDashboardData();
       });
@@ -181,22 +137,16 @@ const Dashboard = () => {
         return;
       }
 
-      console.log('✅ Dashboard: User ID extracted successfully:', userId);
+
       
       // Fetch statistics
-      console.log('📊 Dashboard: Fetching user dashboard stats...');
       const statsRes = await apiService.getUserDashboardStats(userId);
-      console.log('📊 Dashboard: Stats response:', statsRes);
-      console.log('📊 Dashboard: Stats data structure:', JSON.stringify(statsRes.data, null, 2));
-      console.log('📊 Dashboard: Stats data keys:', Object.keys(statsRes.data || {}));
       setStats(statsRes.data || {});
 
       // Fetch recent requests
-      console.log('📋 Dashboard: Fetching user insurance requests...');
       let requestsRes;
       if (user?.role === 'provider') {
         // For providers: get requests they've bid on
-        console.log('📋 Dashboard: Provider - fetching requests with bids...');
         requestsRes = await apiService.getProviderBidRequests(userId, 5);
         setRecentRequests(requestsRes.data || []);
       } else {
@@ -204,50 +154,33 @@ const Dashboard = () => {
         requestsRes = await apiService.getUserInsuranceRequests(userId, 5);
         setRecentRequests(requestsRes.data || []);
       }
-      console.log('📋 Dashboard: Requests response:', requestsRes);
-      console.log('📋 Dashboard: Request data details:', JSON.stringify(requestsRes.data, null, 2));
 
       // Fetch recent bids
-      console.log('💰 Dashboard: Fetching user bids...');
       const bidsRes = await apiService.getUserBids(userId, 5, user?.role);
-      console.log('💰 Dashboard: Bids response:', bidsRes);
       setRecentBids(bidsRes.data || []);
 
       // Fetch recent chats
-      console.log('💬 Dashboard: Fetching user chat rooms...');
       const chatsRes = await apiService.getUserChatRooms(userId, 3);
-      console.log('💬 Dashboard: Chats response:', chatsRes);
       setRecentChats(chatsRes.data || []);
 
       // Fetch unread message count
-      console.log('📨 Dashboard: Fetching unread message count...');
       const unreadCountRes = await apiService.getUserUnreadMessageCount(userId);
-      console.log('📨 Dashboard: Unread count response:', unreadCountRes);
       setUnreadMessageCount(unreadCountRes.data || 0);
 
       // Fetch notifications
-      console.log('🔔 Dashboard: Fetching user notifications...');
       const notificationsRes = await apiService.getUserNotifications(userId, 5);
-      console.log('🔔 Dashboard: Notifications response:', notificationsRes);
       setDashboardNotifications(notificationsRes.data || []);
 
       // Fetch active chats
-      console.log('💬 Dashboard: Fetching user active chats...');
       const activeChatsRes = await apiService.getUserActiveChats(userId, 3);
-      console.log('💬 Dashboard: Active chats response:', activeChatsRes);
       setActiveChats(activeChatsRes.data || []);
 
-      console.log('✅ Dashboard: All data loaded successfully!');
+
       
       // Mark as loaded only after successful completion
       dataLoadedRef.current = true;
       
     } catch (error) {
-      console.error('❌ Dashboard: Error loading dashboard data:', error);
-      console.error('❌ Dashboard: Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
       toast.error('Failed to load dashboard data.');
       setStats({});
       setRecentRequests([]);
@@ -259,36 +192,12 @@ const Dashboard = () => {
       // Don't mark as loaded if there was an error - allow retry
       dataLoadedRef.current = false;
     } finally {
-      console.log('🏁 Dashboard: Setting loading to false');
       setIsLoading(false);
       isLoadingRef.current = false; // Reset the loading ref
     }
   };
 
-  const handleResetData = async () => {
-    if (window.confirm('Are you sure you want to reset all data to initial state? This will clear all your requests, bids, and accepted offers.')) {
-      try {
-        // Clear data via API
-        await apiService.deleteUserData();
-        toast.success('Data reset successfully!');
-        loadDashboardData();
-      } catch (error) {
-        console.error('Error resetting data:', error);
-        toast.error('Failed to reset data.');
-      }
-    }
-  };
 
-  const handleRefreshDashboard = async () => {
-    console.log('🔄 Manual dashboard refresh triggered');
-    console.log('🔄 Current state before refresh:', {
-      recentRequests: recentRequests.length,
-      recentBids: recentBids.length,
-      stats: stats
-    });
-    dataLoadedRef.current = false; // Reset the ref
-    await loadDashboardData();
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -415,29 +324,6 @@ const Dashboard = () => {
             </p>
             </div>
           <div className="flex gap-3">
-            <button
-              onClick={handleRefreshDashboard}
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
-            >
-              🔄 Refresh
-            </button>
-                <button
-              onClick={() => {
-                console.log('🔄 Manual reset button clicked');
-                dataLoadedRef.current = false; // Allow data to be reloaded
-                setIsLoading(false);
-                setStats({});
-                setRecentRequests([]);
-                setRecentBids([]);
-                setRecentChats([]);
-                setDashboardNotifications([]);
-                setActiveChats([]);
-                toast.success('Dashboard reset manually');
-              }}
-              className="inline-flex items-center px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              🔄 Reset
-                </button>
                 <button
               onClick={() => {
                 if (user?.role === 'provider') {

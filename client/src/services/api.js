@@ -1,5 +1,5 @@
 // API service for communicating with MongoDB backend
-const API_BASE_URL = 'https://insurance-marketplace-production.up.railway.app/api';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5002') + '/api';
 
 class ApiService {
   constructor() {

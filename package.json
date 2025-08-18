@@ -1,0 +1,18 @@
+{
+  "name": "insurance-marketplace",
+  "version": "1.0.0",
+  "description": "MERN stack for an insurance marketplace",
+  "main": "index.js",
+  "scripts": {
+    "start": "cd server && node server.js",
+    "server": "npm start --prefix server",
+    "client": "npm start --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.0.1"
+  }
+}
+

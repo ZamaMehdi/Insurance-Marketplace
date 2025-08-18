@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://insurancemarketplace.netlify.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   },
@@ -34,7 +34,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "ws://localhost:5002", "http://localhost:5002"],
+      connectSrc: ["'self'", "ws://localhost:5002", "http://localhost:5002", "https://insurance-marketplace-production.up.railway.app"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
@@ -45,7 +45,7 @@ app.use(helmet({
 
 
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: ["http://localhost:3000", "https://insurancemarketplace.netlify.app"],
   credentials: true
 }));
 // Request size limiting for security

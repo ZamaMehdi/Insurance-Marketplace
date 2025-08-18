@@ -53,6 +53,14 @@ class ApiService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
+        // Log detailed error information for debugging
+        console.log('🔍 API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          errorData: errorData
+        });
+        
         // Handle specific HTTP status codes
         if (response.status === 429) {
           throw new Error('Rate limit exceeded. Please wait a moment and try again.');
@@ -60,6 +68,13 @@ class ApiService {
           throw new Error('Authentication required. Please log in again.');
         } else if (response.status === 403) {
           throw new Error('Access denied. You do not have permission to perform this action.');
+        } else if (response.status === 400) {
+          // Handle validation errors with detailed messages
+          if (errorData.errors && Array.isArray(errorData.errors)) {
+            const validationMessages = errorData.errors.map(err => `${err.path}: ${err.msg}`).join(', ');
+            throw new Error(`Validation failed: ${validationMessages}`);
+          }
+          throw new Error(errorData.message || 'Bad request. Please check your input.');
         } else if (response.status === 404) {
           throw new Error('Resource not found. Please check your request.');
         } else if (response.status >= 500) {

@@ -4,10 +4,12 @@
   "description": "MERN stack for an insurance marketplace",
   "main": "index.js",
   "scripts": {
-    "start": "npm start --prefix server",
+    "start": "cd server && npm install && npm start",
     "server": "npm start --prefix server",
     "client": "npm start --prefix client",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd server && npm install",
+    "postinstall": "cd server && npm install"
   },
   "author": "",
   "license": "ISC",

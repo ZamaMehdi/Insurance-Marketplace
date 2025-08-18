@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import apiService from '../services/api';
+import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext();
 
@@ -13,6 +14,7 @@ export const useNotifications = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [messages, setMessages] = useState([]);
@@ -190,11 +192,14 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch notifications on mount
+  // Fetch notifications on mount only if user is authenticated
   useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
-  }, [fetchNotifications, fetchUnreadCount]);
+    // Only fetch if we have a valid user session
+    if (user && user._id) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [fetchNotifications, fetchUnreadCount, user]);
 
   // Handle chat message notifications
   const handleChatMessage = useCallback((data) => {

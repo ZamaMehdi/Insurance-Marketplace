@@ -154,6 +154,12 @@ const Dashboard = () => {
       return;
     }
     
+    // Safety check - ensure user is properly authenticated
+    if (!user || !user._id) {
+      console.log('Dashboard: User not authenticated, skipping data load');
+      return;
+    }
+    
     // Set loading ref immediately to prevent duplicate calls
     isLoadingRef.current = true;
     setIsLoading(true);

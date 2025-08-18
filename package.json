@@ -4,6 +4,7 @@
   "description": "MERN stack for an insurance marketplace",
   "main": "index.js",
   "scripts": {
+    "start": "npm start --prefix server",
     "server": "npm start --prefix server",
     "client": "npm start --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\""

@@ -45,10 +45,18 @@ const SignUp = () => {
 
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'First name is required';
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters long';
+    } else if (formData.firstName.trim().length > 50) {
+      newErrors.firstName = 'First name must be less than 50 characters long';
     }
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters long';
+    } else if (formData.lastName.trim().length > 50) {
+      newErrors.lastName = 'Last name must be less than 50 characters long';
     }
 
     if (!formData.email.trim()) {

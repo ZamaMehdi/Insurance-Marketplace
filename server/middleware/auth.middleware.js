@@ -6,13 +6,13 @@ const { logSecurityEvent } = require('./audit.middleware');
 const protect = async (req, res, next) => {
   let token;
 
-  console.log('🔐 Protect Middleware: Headers:', req.headers);
-  console.log('🔐 Protect Middleware: Authorization header:', req.headers.authorization);
+  console.log('Protect Middleware: Headers:', req.headers);
+  console.log('Protect Middleware: Authorization header:', req.headers.authorization);
 
   // Check for token in headers
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-    console.log('🔐 Protect Middleware: Token extracted:', token ? 'Present' : 'Missing');
+    console.log('Protect Middleware: Token extracted:', token ? 'Present' : 'Missing');
   }
 
   // Check if token exists
@@ -79,9 +79,9 @@ const protect = async (req, res, next) => {
 // Authorize roles
 const authorize = (...roles) => {
   return (req, res, next) => {
-    console.log('🔐 Authorize Middleware: User:', req.user ? req.user._id : 'No user');
-    console.log('🔐 Authorize Middleware: User role:', req.user ? req.user.role : 'No role');
-    console.log('🔐 Authorize Middleware: Required roles:', roles);
+    console.log(' Authorize Middleware: User:', req.user ? req.user._id : 'No user');
+    console.log(' Authorize Middleware: User role:', req.user ? req.user.role : 'No role');
+    console.log(' Authorize Middleware: Required roles:', roles);
     
     if (!req.user) {
       return res.status(401).json({ 
@@ -97,7 +97,7 @@ const authorize = (...roles) => {
       });
     }
 
-    console.log('🔐 Authorize Middleware: Authorization successful');
+    console.log(' Authorize Middleware: Authorization successful');
     next();
   };
 };

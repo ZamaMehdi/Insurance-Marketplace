@@ -5,6 +5,156 @@ const { logAction } = require('../middleware/audit.middleware');
 const InsuranceOffer = require('../models/InsuranceOffer.model');
 const AcceptedOffer = require('../models/AcceptedOffer.model');
 
+// @route   GET /api/offers/:id
+// @desc    Get specific insurance offer
+// @access  Public
+router.get('/:id', async (req, res) => {
+  try {
+    console.log('🔍 Getting offer by ID:', req.params.id);
+    
+    const offer = await InsuranceOffer.findById(req.params.id)
+      .populate('providerId', 'profile.companyName profile.firstName profile.lastName profile.avgRating profile.totalReviews profile.bio');
+
+    if (!offer) {
+      console.log('❌ Offer not found in database');
+      return res.status(404).json({ 
+        message: 'Insurance offer not found',
+        code: 'OFFER_NOT_FOUND'
+      });
+    }
+
+    console.log('🔍 Found offer:', {
+      id: offer._id,
+      title: offer.title,
+      isPublic: offer.isPublic,
+      status: offer.status,
+      isCollaborative: offer.collaboration?.isCollaborative || false
+    });
+
+    // Allow collaborative offers even if they don't meet the standard public criteria
+    if (offer.collaboration && offer.collaboration.isCollaborative === true) {
+      console.log('✅ Collaborative offer found, allowing access');
+    } else if (!offer.isPublic || offer.status !== 'active') {
+      console.log('❌ Offer does not meet public/active criteria');
+      return res.status(404).json({ 
+        message: 'Insurance offer not found',
+        code: 'OFFER_NOT_FOUND'
+      });
+    }
+
+    // Safely increment view count
+    try {
+      offer.viewCount = (offer.viewCount || 0) + 1;
+      await offer.save();
+      console.log('✅ View count updated');
+    } catch (saveError) {
+      console.warn('⚠️ Could not update view count:', saveError.message);
+      // Continue without updating view count
+    }
+
+    console.log('✅ Returning offer successfully');
+    res.json(offer);
+  } catch (error) {
+    console.error('❌ Get offer error:', error);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Check if it's a MongoDB validation error
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: 'Invalid offer data',
+        code: 'VALIDATION_ERROR',
+        details: error.message
+      });
+    }
+    
+    // Check if it's a MongoDB casting error (invalid ID format)
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        message: 'Invalid offer ID format',
+        code: 'INVALID_ID_FORMAT'
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      code: 'GET_OFFER_ERROR',
+      error: error.message
+    });
+  }
+});
+
+// Health check route - test basic functionality
+router.get('/health', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Insurance offers route is healthy',
+      timestamp: new Date().toISOString(),
+      models: {
+        InsuranceOffer: !!InsuranceOffer,
+        AcceptedOffer: !!AcceptedOffer
+      }
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ message: 'Health check failed' });
+  }
+});
+
+// Get collaborative offers - moved earlier for debugging
+router.get('/collaborative', async (req, res) => {
+  try {
+    console.log('🔍 Collaborative offers route called');
+    console.log('🔍 Request query:', req.query);
+    
+    // Simple query first to test basic functionality
+    const filter = { 'collaboration.isCollaborative': true };
+    console.log('🔍 Filter:', filter);
+    
+    // Test if InsuranceOffer model is available
+    if (!InsuranceOffer) {
+      console.error('❌ InsuranceOffer model is not available');
+      return res.status(500).json({
+        success: false,
+        message: 'InsuranceOffer model not available',
+        error: 'Model import issue'
+      });
+    }
+    
+    console.log('🔍 About to query database with filter:', filter);
+    const offers = await InsuranceOffer.find(filter);
+    console.log('🔍 Found collaborative offers:', offers.length);
+    
+    // Log the first offer if any exist
+    if (offers.length > 0) {
+      console.log('🔍 First offer sample:', {
+        id: offers[0]._id,
+        title: offers[0].title,
+        collaboration: offers[0].collaboration
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: offers,
+      count: offers.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching collaborative offers:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch collaborative offers',
+      error: error.message,
+      errorType: error.name
+    });
+  }
+});
+
 // @route   POST /api/offers/accept
 // @desc    Accept an insurance offer (Client only)
 // @access  Private (Client)
@@ -119,8 +269,10 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     const filter = { 
-      isPublic: true, 
-      status: 'active' 
+      $or: [
+        { isPublic: true, status: 'active' },
+        { 'collaboration.isCollaborative': true, status: 'active' }
+      ]
     };
     
     console.log('🔍 Initial filter:', filter);
@@ -156,6 +308,21 @@ router.get('/', async (req, res) => {
 
     console.log('🔍 Found offers:', offers.length);
     console.log('🔍 Offer IDs:', offers.map(o => o._id));
+    
+    // Debug: Check for collaborative offers
+    const collaborativeOffers = offers.filter(o => o.collaboration?.isCollaborative);
+    const regularOffers = offers.filter(o => !o.collaboration?.isCollaborative);
+    console.log('🔍 Regular offers:', regularOffers.length);
+    console.log('🔍 Collaborative offers:', collaborativeOffers.length);
+    if (collaborativeOffers.length > 0) {
+      console.log('🔍 Collaborative offer details:', collaborativeOffers.map(o => ({
+        id: o._id,
+        title: o.title,
+        isCollaborative: o.collaboration?.isCollaborative,
+        isPublic: o.isPublic,
+        status: o.status
+      })));
+    }
 
     // Get total count for pagination
     const total = await InsuranceOffer.countDocuments(filter);
@@ -180,42 +347,6 @@ router.get('/', async (req, res) => {
       message: 'Server error during offers retrieval',
       code: 'GET_OFFERS_ERROR',
       error: error.message
-    });
-  }
-});
-
-// @route   GET /api/offers/:id
-// @desc    Get specific insurance offer
-// @access  Public
-router.get('/:id', async (req, res) => {
-  try {
-    const offer = await InsuranceOffer.findById(req.params.id)
-      .populate('providerId', 'profile.companyName profile.firstName profile.lastName profile.avgRating profile.totalReviews profile.bio');
-
-    if (!offer) {
-      return res.status(404).json({ 
-        message: 'Insurance offer not found',
-        code: 'OFFER_NOT_FOUND'
-      });
-    }
-
-    if (!offer.isPublic || offer.status !== 'active') {
-      return res.status(404).json({ 
-        message: 'Insurance offer not found',
-        code: 'OFFER_NOT_FOUND'
-      });
-    }
-
-    // Increment view count
-    offer.viewCount = (offer.viewCount || 0) + 1;
-    await offer.save();
-
-    res.json(offer);
-  } catch (error) {
-    console.error('Get offer error:', error);
-    res.status(500).json({ 
-      message: 'Server error',
-      code: 'GET_OFFER_ERROR'
     });
   }
 });
@@ -427,7 +558,12 @@ router.get('/provider/my-offers', protect, async (req, res) => {
       offerObj.totalAcceptedCoverage = acceptedOffers.reduce((sum, ao) => sum + ao.coverageAmount, 0);
       offerObj.totalAcceptedPremium = acceptedOffers.reduce((sum, ao) => sum + ao.monthlyPremium, 0);
       
-      console.log(`🔍 Debug: Offer ${offer.title} - acceptedCount: ${offerObj.acceptedCount}, totalCoverage: ${offerObj.totalAcceptedCoverage}, totalPremium: ${offerObj.totalAcceptedPremium}`);
+      // Add offer's own coverage and premium data
+      offerObj.offerCoverage = offer.coverageDetails?.maxAmount || 0;
+      offerObj.offerPremium = offer.pricing?.basePremium || 0;
+      offerObj.paymentFrequency = offer.pricing?.paymentFrequency || 'monthly';
+      
+      console.log(`🔍 Debug: Offer ${offer.title} - acceptedCount: ${offerObj.acceptedCount}, totalCoverage: ${offerObj.totalAcceptedCoverage}, totalPremium: ${offerObj.totalAcceptedPremium}, offerCoverage: ${offerObj.offerCoverage}, offerPremium: ${offerObj.offerPremium}`);
       
       return offerObj;
     }));
@@ -506,20 +642,149 @@ router.post('/:id/toggle-status', protect, requireVerifiedProvider, async (req, 
   }
 });
 
+// Create collaborative insurance offer
+router.post('/collaborative', protect, authorize('provider'), async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      coverageDetails,
+      terms,
+      pricing,
+      eligibility,
+      features,
+      highlights,
+      tags,
+      isPublic,
+      collaboration
+    } = req.body;
+
+    // Validate collaboration data
+    if (!collaboration || !collaboration.isCollaborative) {
+      return res.status(400).json({
+        success: false,
+        message: 'Collaboration data is required'
+      });
+    }
+
+    if (!collaboration.providers || collaboration.providers.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least 2 providers are required for collaboration'
+      });
+    }
+
+    // Validate coverage and premium percentages
+    const totalCoverage = collaboration.providers.reduce((sum, p) => sum + (p.coveragePercentage || 0), 0);
+    const totalPremiumShare = collaboration.providers.reduce((sum, p) => sum + (p.premiumShare || 0), 0);
+
+    if (totalCoverage !== 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Total coverage percentage must equal 100%'
+      });
+    }
+
+    if (totalPremiumShare !== 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Total premium share percentage must equal 100%'
+      });
+    }
+
+    // Create the collaborative offer
+    const collaborativeOffer = new InsuranceOffer({
+      providerId: req.user._id, // Lead provider
+      title,
+      description,
+      category,
+      coverageDetails,
+      terms,
+      pricing,
+      eligibility,
+      features,
+      highlights,
+      tags,
+      isPublic,
+      collaboration: {
+        ...collaboration,
+        leadProvider: req.user._id,
+        totalCoveragePercentage: totalCoverage,
+        isFullyCovered: totalCoverage === 100
+      }
+    });
+
+    await collaborativeOffer.save();
+
+    // Send notifications to all collaborating providers
+    const io = req.app.get('io');
+    if (io) {
+      collaboration.providers.forEach(provider => {
+        if (provider.providerId !== req.user._id) {
+          io.to(`user_${provider.providerId}`).emit('collaboration_invitation', {
+            type: 'new_collaboration',
+            title: 'New Collaboration Invitation',
+            message: `You've been invited to collaborate on: ${title}`,
+            offerId: collaborativeOffer._id,
+            leadProvider: req.user.profile?.companyName || `${req.user.profile?.firstName} ${req.user.profile?.lastName}`
+          });
+        }
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Collaborative offer created successfully',
+      data: collaborativeOffer
+    });
+
+  } catch (error) {
+    console.error('Error creating collaborative offer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create collaborative offer',
+      error: error.message
+    });
+  }
+});
+
+// Test route to verify basic functionality
+router.get('/test', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Insurance offers route is working',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Test route error:', error);
+    res.status(500).json({ message: 'Test route error' });
+  }
+});
+
 // Debug endpoint to check all offers
 router.get('/debug/all-offers', async (req, res) => {
   try {
     console.log('🔍 Debug: Fetching all offers...');
     
     const allOffers = await InsuranceOffer.find({})
-      .select('title status isPublic createdAt providerId coverageDetails pricing');
+      .select('_id title status isPublic createdAt providerId coverageDetails pricing collaboration')
+      .limit(20);
     
     console.log('🔍 Debug: Found offers:', allOffers.length);
     
     res.json({
       message: 'All offers in database',
       totalOffers: allOffers.length,
-      offers: allOffers
+      offers: allOffers.map(o => ({
+        id: o._id,
+        title: o.title,
+        status: o.status,
+        isPublic: o.isPublic,
+        isCollaborative: o.collaboration?.isCollaborative,
+        createdAt: o.createdAt
+      }))
     });
   } catch (error) {
     console.error('🔍 Debug offers error:', error);
@@ -632,6 +897,53 @@ router.post('/debug/fix-offer-data/:id', protect, async (req, res) => {
   } catch (error) {
     console.error('Fix offer data error:', error);
     res.status(500).json({ message: 'Error fixing offer data' });
+  }
+});
+
+// Debug endpoint to check specific offer
+router.get('/debug/offer/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔍 Debug: Checking offer with ID:', id);
+    
+    const offer = await InsuranceOffer.findById(id);
+    
+    if (!offer) {
+      console.log('❌ Debug: Offer not found');
+      return res.json({
+        message: 'Offer not found',
+        id: id,
+        exists: false
+      });
+    }
+    
+    console.log('✅ Debug: Offer found:', {
+      id: offer._id,
+      title: offer.title,
+      status: offer.status,
+      isPublic: offer.isPublic,
+      isCollaborative: offer.collaboration?.isCollaborative
+    });
+    
+    res.json({
+      message: 'Offer found',
+      id: id,
+      exists: true,
+      offer: {
+        id: offer._id,
+        title: offer.title,
+        status: offer.status,
+        isPublic: offer.isPublic,
+        isCollaborative: offer.collaboration?.isCollaborative,
+        createdAt: offer.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('🔍 Debug offer check error:', error);
+    res.status(500).json({ 
+      message: 'Error checking offer',
+      error: error.message
+    });
   }
 });
 

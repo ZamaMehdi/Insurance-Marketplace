@@ -23,8 +23,6 @@ export const NotificationProvider = ({ children }) => {
 
   // Handle notifications from the shared data store
   const handleNotification = useCallback((type, data) => {
-    console.log('Notification received:', type, data);
-    
     let title = 'New Notification';
     let message = data.message || 'You have a new notification';
     
@@ -169,8 +167,7 @@ export const NotificationProvider = ({ children }) => {
         const unreadNotifications = transformedNotifications.filter(notif => !notif.read);
         setUnreadCount(unreadNotifications.length);
         
-        // console.log('🔔 Transformed notifications:', transformedNotifications);
-        // console.log('🔔 Unread count:', unreadNotifications.length);
+                    // Chat notifications are processed silently
       }
     } catch (error) {
       console.error('❌ Error fetching notifications:', error);

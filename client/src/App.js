@@ -24,6 +24,8 @@ import KYCVerification from './components/KYCVerification';
 import SignUp from './pages/SignUp';
 import Login from './pages/Login';
 import ChatPage from './pages/ChatPage';
+import CollaborativeOffer from './pages/CollaborativeOffer';
+import OfferDetail from './pages/OfferDetail';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -122,14 +124,19 @@ function App() {
                   } />
 
                   {/* Protected Routes - Providers Only */}
+                  <Route path="/post-offer" element={
+                    <ProtectedRoute requiredRole="provider">
+                      <PostInsuranceOffer />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/collaborative-offer" element={
+                    <ProtectedRoute requiredRole="provider">
+                      <CollaborativeOffer />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/browse-requests" element={
                     <ProtectedRoute requiredRole="provider">
                       <BrowseRequests />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/post-insurance-offer" element={
-                    <ProtectedRoute requiredRole="provider">
-                      <PostInsuranceOffer />
                     </ProtectedRoute>
                   } />
                   <Route path="/kyc" element={
@@ -150,6 +157,11 @@ function App() {
                   <Route path="/request-detail/:id" element={
                     <ProtectedRoute>
                       <RequestDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/offer-detail/:id" element={
+                    <ProtectedRoute>
+                      <OfferDetail />
                     </ProtectedRoute>
                   } />
 

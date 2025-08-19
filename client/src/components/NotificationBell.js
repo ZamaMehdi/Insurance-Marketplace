@@ -3,6 +3,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Bell, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const NotificationBell = ({ onOpenChat }) => {
   const { 
@@ -98,11 +99,24 @@ const NotificationBell = ({ onOpenChat }) => {
                       key={index} 
                       className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => {
-                        markAsRead(index);
+                        markAsRead(notification.id);
+                        
                         // Handle different notification types
-                        if (notification.type === 'chat_message' && notification.data?.roomId) {
-                          navigate(`/chat/${notification.data.roomId}`);
-                          setShowDropdown(false);
+                        if (notification.type === 'chat_message' || notification.type === 'message_read') {
+                          // Try to get roomId from different possible locations
+                          let roomId = notification.data?.roomId || notification.data?.chatRoomId || notification.data?.room?._id;
+                          
+                          // If no roomId in data, try to extract from actionUrl
+                          if (!roomId && notification.actionUrl && notification.actionUrl.startsWith('/chat/')) {
+                            roomId = notification.actionUrl.split('/chat/')[1];
+                          }
+                          
+                          if (roomId) {
+                            navigate(`/chat/${roomId}`);
+                            setShowDropdown(false);
+                          } else {
+                            toast.error('Unable to open chat - room not found');
+                          }
                         } else if (notification.type === 'new_bid' && notification.data?.requestId) {
                           // Navigate to the request details or dashboard
                           navigate('/dashboard');

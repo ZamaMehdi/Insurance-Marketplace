@@ -5,17 +5,11 @@ class NotificationService {
    * Create a new notification
    */
   static async createNotification(data) {
-    console.log('🔔 NotificationService.createNotification called with:', data);
     try {
       const notification = await Notification.createNotification(data);
-      console.log('✅ Notification created successfully:', notification._id);
       return notification;
     } catch (error) {
       console.error('❌ Error creating notification:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
       throw error;
     }
   }
@@ -165,8 +159,6 @@ class NotificationService {
    * Create chat-related notifications
    */
   static async createChatNotification(type, data) {
-    console.log('🔔 NotificationService.createChatNotification called with:', { type, data });
-    
     const notificationData = {
       recipientId: data.recipientId,
       senderId: data.senderId,
@@ -178,8 +170,6 @@ class NotificationService {
         ...data.additionalData
       }
     };
-    
-    console.log('🔔 Final notificationData:', notificationData);
 
     switch (type) {
       case 'new_message':

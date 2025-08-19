@@ -209,8 +209,22 @@ const PostInsuranceOffer = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Post Insurance Offer</h1>
-          <p className="text-gray-600 mt-2">Create a new insurance offer for potential clients</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Post Insurance Offer</h1>
+              <p className="text-gray-600 mt-2">Create a new insurance offer for potential clients</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                console.log('🔍 Debug: Checking auth state...');
+                apiService.debugAuthState();
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
+            >
+              Debug Auth
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">

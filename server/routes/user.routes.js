@@ -93,7 +93,7 @@ router.get('/:userId/dashboard-stats', protect, async (req, res) => {
       });
     }
 
-    let totalRequests, openRequests, acceptedRequests, totalBids, pendingBids, acceptedOffersCount = 0;
+    let totalRequests, openRequests, acceptedRequests, totalBids, pendingBids, acceptedOffersCount = 0, activeOffersCount = 0;
 
     if (req.user.role === 'provider') {
       // For providers: count requests they've bid on
@@ -123,6 +123,33 @@ router.get('/:userId/dashboard-stats', protect, async (req, res) => {
         providerId: userId,
         status: 'active'
       });
+
+      // For providers: count their posted offers and calculate total coverage
+      const InsuranceOffer = require('../models/InsuranceOffer.model');
+      const providerOffers = await InsuranceOffer.find({ 
+        providerId: userId,
+        status: { $in: ['active', 'pending'] }
+      });
+      
+      // Count active offers
+      activeOffersCount = providerOffers.filter(offer => offer.status === 'active').length;
+      
+      // Calculate total coverage from their offers
+      const totalCoverage = providerOffers.reduce((sum, offer) => {
+        if (offer.coverageDetails && offer.coverageDetails.maxAmount) {
+          return sum + (offer.coverageDetails.maxAmount || 0);
+        }
+        return sum;
+      }, 0);
+
+      // Update the stats to include provider-specific data
+      stats = {
+        ...stats,
+        activeItems: activeOffersCount, // Show active offers count for providers
+        totalCoverage: totalCoverage,
+        activeOffers: activeOffersCount,
+        totalOffers: providerOffers.length
+      };
     } else {
       // For clients: count requests they've created
       totalRequests = await InsuranceRequest.countDocuments({ clientId: userId });
@@ -178,7 +205,7 @@ router.get('/:userId/dashboard-stats', protect, async (req, res) => {
     // Format stats for frontend
     const stats = {
       // For compatibility with existing frontend
-      activeItems: req.user.role === 'provider' ? openRequests : openRequests,
+      activeItems: req.user.role === 'provider' ? (activeOffersCount || 0) : openRequests,
       totalBids: totalBids,
       pendingActions: pendingBids,
       totalCoverage: totalCoverage,
@@ -203,6 +230,108 @@ router.get('/:userId/dashboard-stats', protect, async (req, res) => {
     res.status(500).json({
       message: 'Server error during dashboard stats retrieval',
       code: 'GET_DASHBOARD_STATS_ERROR'
+    });
+  }
+});
+
+// @route   GET /api/users/:userId/provider-dashboard
+// @desc    Get provider-specific dashboard data
+// @access  Private (Provider only)
+router.get('/:userId/provider-dashboard', protect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Verify the user is requesting their own stats or is an admin
+    if (req.user.id !== userId) {
+      return res.status(403).json({
+        message: 'Not authorized to access this user\'s dashboard',
+        code: 'UNAUTHORIZED_ACCESS'
+      });
+    }
+
+    // Verify user is a provider
+    if (req.user.role !== 'provider') {
+      return res.status(403).json({
+        message: 'This endpoint is only for providers',
+        code: 'PROVIDER_ONLY'
+      });
+    }
+
+    const InsuranceOffer = require('../models/InsuranceOffer.model');
+    
+    // Get provider's offers
+    const providerOffers = await InsuranceOffer.find({ 
+      providerId: userId,
+      status: { $in: ['active', 'pending', 'draft'] }
+    });
+
+    // Calculate statistics
+    const activeOffers = providerOffers.filter(offer => offer.status === 'active');
+    const pendingOffers = providerOffers.filter(offer => offer.status === 'pending');
+    const draftOffers = providerOffers.filter(offer => offer.status === 'draft');
+
+    // Calculate total coverage from active offers
+    const totalCoverage = activeOffers.reduce((sum, offer) => {
+      if (offer.coverageDetails && offer.coverageDetails.maxAmount) {
+        return sum + (offer.coverageDetails.maxAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    // Calculate total monthly premium from active offers
+    const totalMonthlyPremium = activeOffers.reduce((sum, offer) => {
+      if (offer.pricing && offer.pricing.basePremium) {
+        const premium = offer.pricing.basePremium;
+        // Convert to monthly if needed
+        if (offer.pricing.paymentFrequency === 'annually') {
+          return sum + (premium / 12);
+        } else if (offer.pricing.paymentFrequency === 'quarterly') {
+          return sum + (premium / 3);
+        } else if (offer.pricing.paymentFrequency === 'semi-annually') {
+          return sum + (premium / 6);
+        } else {
+          return sum + premium; // monthly
+        }
+      }
+      return sum;
+    }, 0);
+
+    // Get bids from insurance requests
+    const InsuranceRequest = require('../models/InsuranceRequest.model');
+    const totalBids = await InsuranceRequest.countDocuments({
+      'bids.providerId': userId
+    });
+
+    const pendingBids = await InsuranceRequest.countDocuments({
+      'bids.providerId': userId,
+      'bids': { $elemMatch: { providerId: userId, status: 'pending' } }
+    });
+
+    const stats = {
+      activeOffers: activeOffers.length,
+      pendingOffers: pendingOffers.length,
+      draftOffers: draftOffers.length,
+      totalOffers: providerOffers.length,
+      totalCoverage: totalCoverage,
+      totalMonthlyPremium: totalMonthlyPremium,
+      totalBids: totalBids,
+      pendingBids: pendingBids,
+      viewCount: activeOffers.reduce((sum, offer) => sum + (offer.viewCount || 0), 0),
+      inquiryCount: activeOffers.reduce((sum, offer) => sum + (offer.inquiryCount || 0), 0),
+      averageRating: activeOffers.length > 0 
+        ? activeOffers.reduce((sum, offer) => sum + (offer.rating?.average || 0), 0) / activeOffers.length 
+        : 0
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get provider dashboard error:', error);
+    res.status(500).json({
+      message: 'Server error during provider dashboard retrieval',
+      code: 'GET_PROVIDER_DASHBOARD_ERROR'
     });
   }
 });
@@ -517,6 +646,49 @@ router.get('/:userId/active-chats', protect, async (req, res) => {
     res.status(500).json({
       message: 'Server error during user active chats retrieval',
       code: 'GET_USER_ACTIVE_CHATS_ERROR'
+    });
+  }
+});
+
+// Search providers
+router.get('/providers/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters long'
+      });
+    }
+
+    const searchQuery = {
+      role: 'provider',
+      isActive: true,
+      $or: [
+        { 'profile.companyName': { $regex: q, $options: 'i' } },
+        { 'profile.firstName': { $regex: q, $options: 'i' } },
+        { 'profile.lastName': { $regex: q, $options: 'i' } },
+        { 'profile.expertise': { $in: [new RegExp(q, 'i')] } },
+        { email: { $regex: q, $options: 'i' } }
+      ]
+    };
+
+    const providers = await User.find(searchQuery)
+      .select('_id email profile.firstName profile.lastName profile.companyName profile.expertise profile.avgRating profile.phone')
+      .limit(10);
+
+    res.json({
+      success: true,
+      data: providers
+    });
+
+  } catch (error) {
+    console.error('Error searching providers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search providers',
+      error: error.message
     });
   }
 });

@@ -95,9 +95,14 @@ router.post('/register', authLimiter, [
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('🔍 Validation errors:', errors.array());
       return res.status(400).json({ 
         message: 'Validation failed',
-        errors: errors.array()
+        errors: errors.array().map(err => ({
+          param: err.param,
+          msg: err.msg,
+          value: err.value
+        }))
       });
     }
 

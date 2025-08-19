@@ -74,15 +74,16 @@ const PostedOffers = () => {
       setLoading(true);
       console.log('PostedOffers: Loading provider offers from API');
       
-      const providerId = user?.user?._id || user?._id;
-      const response = await apiService.getProviderOffers(providerId);
+      const response = await apiService.getProviderOffers();
       
       if (response && response.offers && Array.isArray(response.offers)) {
         setOffers(response.offers);
         console.log('✅ Provider offers loaded:', response.offers.length);
+        console.log('🔍 Offer data structure:', response.offers[0]); // Debug first offer
       } else if (response && Array.isArray(response)) {
         setOffers(response);
         console.log('✅ Provider offers loaded (fallback):', response.length);
+        console.log('🔍 Offer data structure:', response[0]); // Debug first offer
       } else {
         setOffers([]);
         console.log('❌ Failed to load provider offers');
@@ -215,61 +216,108 @@ const PostedOffers = () => {
 
         {/* Summary Statistics */}
         {offers.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Shield className="h-6 w-6 text-blue-600" />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Shield className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Offers</p>
+                    <p className="text-2xl font-bold text-gray-900">{offers.length}</p>
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Offers</p>
-                  <p className="text-2xl font-bold text-gray-900">{offers.length}</p>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Accepted Offers</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {offers.reduce((sum, offer) => sum + (offer.acceptedCount || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <DollarSign className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Coverage</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      ${offers.reduce((sum, offer) => {
+                        // Use offer's own coverage amount (potential coverage)
+                        const coverage = offer.offerCoverage || offer.coverageDetails?.maxAmount || 0;
+                        return sum + coverage;
+                      }, 0).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Accepted: ${offers.reduce((sum, offer) => sum + (offer.totalAcceptedCoverage || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Monthly Premium</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      ${offers.reduce((sum, offer) => {
+                        // Use offer's own premium amount (potential premium)
+                        let premium = offer.offerPremium || offer.pricing?.basePremium || 0;
+                        
+                        // Convert to monthly if needed
+                        const frequency = offer.paymentFrequency || offer.pricing?.paymentFrequency || 'monthly';
+                        if (frequency === 'annually') {
+                          premium = premium / 12;
+                        } else if (frequency === 'quarterly') {
+                          premium = premium / 3;
+                        } else if (frequency === 'semi-annually') {
+                          premium = premium / 6;
+                        }
+                        // If monthly, use as is
+                        
+                        return sum + premium;
+                      }, 0).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Accepted: ${offers.reduce((sum, offer) => sum + (offer.totalAcceptedPremium || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+            {/* Statistics Explanation */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Accepted Offers</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {offers.reduce((sum, offer) => sum + (offer.acceptedCount || 0), 0)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Coverage</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${offers.reduce((sum, offer) => sum + (offer.totalAcceptedCoverage || 0), 0).toLocaleString()}
-                  </p>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">Understanding Your Statistics</h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p><strong>Total Coverage:</strong> Shows the maximum coverage amount your offers can provide (potential).</p>
+                    <p><strong>Monthly Premium:</strong> Shows the total monthly premium your offers can generate (potential).</p>
+                    <p><strong>Accepted:</strong> Shows the actual coverage and premium from offers that clients have accepted.</p>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Monthly Premium</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${offers.reduce((sum, offer) => sum + (offer.totalAcceptedPremium || 0), 0).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         {/* Search and Filters */}

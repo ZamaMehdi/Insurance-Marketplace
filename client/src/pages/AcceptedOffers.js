@@ -41,7 +41,6 @@ const AcceptedOffers = () => {
     if (socket) {
       // Listen for offer acceptance notifications
       socket.on('offer_accepted', (data) => {
-        console.log('AcceptedOffers: Offer accepted notification:', data);
         toast.success(`Offer accepted: ${data.message || 'Your offer was accepted!'}`);
         fetchAcceptedOffers(); // Refresh to show new accepted offer
       });
@@ -54,13 +53,11 @@ const AcceptedOffers = () => {
 
   const fetchAcceptedOffers = async () => {
     if (!user) {
-      console.log('AcceptedOffers: User not loaded yet, skipping fetch');
       return;
     }
 
     try {
       setLoading(true);
-      console.log('AcceptedOffers: Loading accepted offers from API');
       
       // Resolve userId shape from auth state
       const clientId = user?.user?._id || user?._id;
@@ -70,12 +67,8 @@ const AcceptedOffers = () => {
       
       if (response && response.success) {
         setAcceptedOffers(response.data);
-        console.log('✅ Accepted offers loaded:', response.data.length);
-        console.log('✅ Response data:', response.data);
       } else {
         setAcceptedOffers([]);
-        console.log('❌ Failed to load accepted offers');
-        console.log('❌ Response:', response);
       }
       
     } catch (error) {
@@ -90,8 +83,6 @@ const AcceptedOffers = () => {
     if (!window.confirm('Are you sure you want to cancel this insurance offer? This action cannot be undone.')) return;
 
     try {
-      console.log('AcceptedOffers: Cancelling offer via API');
-      
       // Update offer status via API
       const response = await apiService.updateAcceptedOfferStatus(offerId, 'cancelled');
       

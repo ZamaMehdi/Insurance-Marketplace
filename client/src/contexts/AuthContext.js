@@ -37,6 +37,17 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
+  // Listen for logout events from API service
+  useEffect(() => {
+    const handleLogout = (event) => {
+      setUser(null);
+      apiService.removeAuthToken();
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
+
   // Register new user
   const register = async (userData) => {
     try {

@@ -122,7 +122,7 @@ const InsuranceRequests = () => {
       } else if (response && Array.isArray(response)) {
         // Fallback for old format
         setRequests(response);
-        console.log('Client requests loaded from MongoDB API (old format):', response.length);
+        // console.log('Client requests loaded from MongoDB API (old format):', response.length);
         
         // Fetch bid counts for each request
         const bidCountsData = {};
@@ -166,12 +166,12 @@ const InsuranceRequests = () => {
     if (!window.confirm('Are you sure you want to delete this insurance request? This action cannot be undone.')) return;
 
     try {
-      console.log('InsuranceRequests: Deleting request via API');
+      // console.log('InsuranceRequests: Deleting request via API');
       
       // Call the API to delete the request from the database
       const response = await apiService.deleteRequest(requestId);
       
-      console.log('Delete response:', response);
+      // console.log('Delete response:', response);
       
       if (response && (response.success || response.message)) {
         // Remove from local state
@@ -190,7 +190,7 @@ const InsuranceRequests = () => {
 
   const handleBidResponse = async (requestId, bidId, action) => {
     try {
-      console.log('InsuranceRequests: Processing bid response:', action);
+      // console.log('InsuranceRequests: Processing bid response:', action);
       
       if (action === 'accept') {
         try {
@@ -293,18 +293,18 @@ const InsuranceRequests = () => {
     const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || request.assetDetails?.type === selectedCategory;
     
-    console.log('🔍 Filtering request:', request.title);
-    console.log('🔍 Request category:', request.assetDetails?.type);
-    console.log('🔍 Selected category:', selectedCategory);
-    console.log('🔍 Category match:', matchesCategory);
-    console.log('🔍 Final result:', matchesSearch && matchesStatus && matchesCategory);
+    // console.log('🔍 Filtering request:', request.title);
+    // console.log('🔍 Request category:', request.assetDetails?.type);
+    // console.log('🔍 Selected category:', selectedCategory);
+    // console.log('🔍 Category match:', matchesCategory);
+    // console.log('🔍 Final result:', matchesSearch && matchesStatus && matchesCategory);
     
     return matchesSearch && matchesStatus && matchesCategory;
   });
   
-  console.log('🔍 Total requests:', requests.length);
-  console.log('🔍 Filtered requests:', filteredRequests.length);
-  console.log('🔍 Selected category:', selectedCategory);
+  // console.log('🔍 Total requests:', requests.length);
+  // console.log('🔍 Filtered requests:', filteredRequests.length);
+  // console.log('🔍 Selected category:', selectedCategory);
 
   const getStatusColor = (status) => {
     const statusConfig = {

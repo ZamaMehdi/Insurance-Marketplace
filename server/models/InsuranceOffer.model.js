@@ -93,7 +93,33 @@ const insuranceOfferSchema = new Schema({
     description: { type: String },
     validUntil: { type: Date },
     discount: { type: Number }
-  }]
+  }],
+
+  // New collaboration fields
+  collaboration: {
+    isCollaborative: { type: Boolean, default: false },
+    providers: [{
+      providerId: { type: Schema.Types.ObjectId, ref: 'User' },
+      providerName: { type: String },
+      coveragePercentage: { type: Number, min: 1, max: 100 },
+      premiumShare: { type: Number, min: 1, max: 100 },
+      responsibilities: [String],
+      expertise: [String],
+      contactInfo: {
+        email: String,
+        phone: String
+      }
+    }],
+    leadProvider: { type: Schema.Types.ObjectId, ref: 'User' },
+    partnershipAgreement: { type: String },
+    collaborationType: {
+      type: String,
+      enum: ['joint_venture', 'consortium', 'syndicate', 'partnership'],
+      default: 'partnership'
+    },
+    totalCoveragePercentage: { type: Number, min: 1, max: 100, default: 100 },
+    isFullyCovered: { type: Boolean, default: true }
+  }
 }, {
   timestamps: true
 });
@@ -133,6 +159,38 @@ insuranceOfferSchema.virtual('monthlyPremium').get(function() {
     return this.pricing.basePremium / 12;
   }
   return this.pricing.basePremium;
+});
+
+// Custom validation for collaboration fields
+insuranceOfferSchema.pre('validate', function(next) {
+  if (this.collaboration && this.collaboration.isCollaborative === true) {
+    // If it's a collaborative offer, validate required fields
+    if (!this.collaboration.leadProvider) {
+      this.invalidate('collaboration.leadProvider', 'Lead provider is required for collaborative offers');
+    }
+    if (!this.collaboration.providers || this.collaboration.providers.length === 0) {
+      this.invalidate('collaboration.providers', 'At least one provider is required for collaborative offers');
+    }
+    
+    // Validate each provider has required fields
+    if (this.collaboration.providers && this.collaboration.providers.length > 0) {
+      this.collaboration.providers.forEach((provider, index) => {
+        if (!provider.providerId) {
+          this.invalidate(`collaboration.providers.${index}.providerId`, 'Provider ID is required');
+        }
+        if (!provider.providerName) {
+          this.invalidate(`collaboration.providers.${index}.providerName`, 'Provider name is required');
+        }
+        if (!provider.coveragePercentage) {
+          this.invalidate(`collaboration.providers.${index}.coveragePercentage`, 'Coverage percentage is required');
+        }
+        if (!provider.premiumShare) {
+          this.invalidate(`collaboration.providers.${index}.premiumShare`, 'Premium share is required');
+        }
+      });
+    }
+  }
+  next();
 });
 
 // Ensure virtual fields are serialized

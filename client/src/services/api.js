@@ -8,11 +8,22 @@ class ApiService {
 
   // Get auth token from localStorage
   getAuthToken() {
-    return localStorage.getItem('insurance_token');
+    const token = localStorage.getItem('insurance_token');
+    // console.log('🔍 Getting auth token:', {
+    //   hasToken: !!token,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+    // });
+    return token;
   }
 
   // Set auth token in localStorage
   setAuthToken(token) {
+    // console.log('🔍 Setting auth token:', {
+    //   hasToken: !!token,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+    // });
     localStorage.setItem('insurance_token', token);
   }
 
@@ -21,10 +32,25 @@ class ApiService {
     localStorage.removeItem('insurance_token');
   }
 
+  // Trigger logout event for components to handle
+  triggerLogout() {
+    // Dispatch a custom event that components can listen to
+    window.dispatchEvent(new CustomEvent('auth:logout', {
+      detail: { reason: 'token_expired' }
+    }));
+  }
+
   // Generic request method
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const token = this.getAuthToken();
+    
+    // console.log('🔍 API Request Debug:', {
+    //   endpoint,
+    //   hasToken: !!token,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+    // });
     
     const config = {
       headers: {
@@ -39,6 +65,13 @@ class ApiService {
       config.headers['Content-Type'] = 'application/json';
     }
 
+    // console.log('🔍 Request Config:', {
+    //   url,
+    //   method: config.method || 'GET',
+    //   headers: config.headers,
+    //   hasBody: !!config.body
+    // });
+
     try {
       const response = await fetch(url, config);
       
@@ -49,13 +82,16 @@ class ApiService {
         if (response.status === 429) {
           throw new Error('Rate limit exceeded. Please wait a moment and try again.');
         } else if (response.status === 401) {
+          // Clear invalid token and trigger logout
+          this.removeAuthToken();
+          this.triggerLogout();
           throw new Error('Authentication required. Please log in again.');
         } else if (response.status === 403) {
           throw new Error('Access denied. You do not have permission to perform this action.');
         } else if (response.status === 400) {
           // Handle validation errors with detailed messages
           if (errorData.errors && Array.isArray(errorData.errors)) {
-            const validationMessages = errorData.errors.map(err => `${err.path}: ${err.msg}`).join(', ');
+            const validationMessages = errorData.errors.map(err => `${err.param || err.path || 'field'}: ${err.msg}`).join(', ');
             throw new Error(`Validation failed: ${validationMessages}`);
           }
           throw new Error(errorData.message || 'Bad request. Please check your input.');
@@ -159,7 +195,7 @@ class ApiService {
     });
   }
 
-  async getProviderOffers(providerId, filters = {}) {
+  async getProviderOffers(filters = {}) {
     const queryParams = new URLSearchParams();
     
     Object.entries(filters).forEach(([key, value]) => {
@@ -329,6 +365,10 @@ class ApiService {
     return await this.request(`/users/${userId}/dashboard-stats`);
   }
 
+  async getProviderDashboardStats(userId) {
+    return await this.request(`/users/${userId}/provider-dashboard`);
+  }
+
   async getUserInsuranceRequests(userId, limit = 5) {
     return await this.request(`/users/${userId}/insurance-requests?limit=${limit}`);
   }
@@ -359,6 +399,23 @@ class ApiService {
 
   // Chat endpoints
   async createOrGetChatRoom(requestId, otherUserId) {
+    // First try to get existing chat room to prevent duplicates
+    try {
+      const existingRooms = await this.request('/chat/rooms');
+      if (existingRooms.success && existingRooms.data) {
+        const existingRoom = existingRooms.data.find(room => 
+          room.requestId === requestId && 
+          room.participants.some(p => p._id === otherUserId)
+        );
+        if (existingRoom) {
+          return { success: true, data: existingRoom };
+        }
+      }
+    } catch (error) {
+      // Could not check for existing rooms, proceeding with creation
+    }
+    
+    // Create new chat room if none exists
     return await this.request('/chat/rooms', {
       method: 'POST',
       body: JSON.stringify({ requestId, otherUserId })
@@ -370,11 +427,11 @@ class ApiService {
     queryParams.append('limit', limit);
     if (before) queryParams.append('before', before);
     
-    console.log('🔍 API Service: Getting chat messages for room:', roomId);
-    console.log('🔍 API Service: Query params:', queryParams.toString());
+    // console.log('🔍 API Service: Getting chat messages for room:', roomId);
+    // console.log('🔍 API Service: Query params:', queryParams.toString());
     
     const result = await this.request(`/chat/rooms/${roomId}/messages?${queryParams.toString()}`);
-    console.log('🔍 API Service: Chat messages result:', result);
+    // console.log('🔍 API Service: Chat messages result:', result);
     
     return result;
   }
@@ -451,41 +508,112 @@ class ApiService {
   // Group Insurance endpoints (placeholder - backend routes not implemented yet)
   async getGroupDealsByRequest(requestId) {
     // Return empty array for now - backend routes not implemented
-    console.log('Group insurance not implemented yet, returning empty array');
     return { success: true, data: [] };
   }
 
   async createGroupInsuranceDeal(dealData) {
     // Return success for now - backend routes not implemented
-    console.log('Group insurance not implemented yet, returning success');
     return { success: true, message: 'Group deal creation not implemented yet' };
   }
 
   async addProviderToGroup(groupId, providerData) {
     // Return success for now - backend routes not implemented
-    console.log('Group insurance not implemented yet, returning success');
     return { success: true, message: 'Provider addition not implemented yet' };
+  }
+
+  // Collaborative Offer endpoints
+  async createCollaborativeOffer(offerData) {
+    return await this.request('/offers/collaborative', {
+      method: 'POST',
+      body: JSON.stringify(offerData)
+    });
+  }
+
+  async getCollaborativeOffers(filters = {}) {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const endpoint = `/offers/collaborative${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return await this.request(endpoint);
+  }
+
+  // Provider search
+  async searchProviders(searchTerm) {
+    return await this.request(`/users/providers/search?q=${encodeURIComponent(searchTerm)}`);
   }
 
   // Debug methods (for development)
   async debugStore() {
-    console.log('Debug: API Service Store State');
     return { message: 'Debug method called' };
   }
 
   async resetStore() {
-    console.log('Debug: API Service Store Reset');
     return { message: 'Store reset' };
   }
 
   async forceReloadFromStorage() {
-    console.log('Debug: API Service Force Reload');
     return { message: 'Force reload called' };
   }
 
   // Check if user is authenticated
   isAuthenticated() {
-    return !!this.getAuthToken();
+    const token = this.getAuthToken();
+    const isAuth = !!token;
+    // console.log('🔍 isAuthenticated check:', {
+    //   hasToken: isAuth,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+    // });
+    return isAuth;
+  }
+
+  // Validate token by making a test request
+  async validateToken() {
+    try {
+      const token = this.getAuthToken();
+      if (!token) return false;
+      
+      // Make a simple request to validate the token
+      const response = await fetch(`${this.baseURL}/auth/validate`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.ok;
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      return false;
+    }
+  }
+
+  // Debug method to check authentication state
+  debugAuthState() {
+    const token = this.getAuthToken();
+    const allKeys = Object.keys(localStorage);
+    const insuranceKeys = allKeys.filter(key => key.includes('insurance'));
+    
+    // console.log('🔍 Debug Auth State:', {
+    //   hasToken: !!token,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none',
+    //   allLocalStorageKeys: allKeys,
+    //   insuranceKeys: insuranceKeys,
+    //   localStorageSize: localStorage.length
+    // });
+    
+    return {
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0,
+      allKeys,
+      insuranceKeys
+    };
   }
 
   // KYC endpoints

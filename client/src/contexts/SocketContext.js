@@ -17,51 +17,37 @@ export const SocketProvider = ({ children, socket }) => {
 
   useEffect(() => {
     if (socket && isAuthenticated && user?._id) {
-      console.log('🔌 SocketContext: Attempting to connect to socket...');
-      console.log('🔌 SocketContext: Socket instance:', socket);
-      console.log('🔌 SocketContext: User authenticated:', isAuthenticated);
-      console.log('🔌 SocketContext: User ID:', user._id);
-      
       // Socket is already connected from App.js, just set connected state
       setIsConnected(true);
 
       // Connection event handlers
       socket.on('connect', () => {
-        console.log('Connected to server');
         setIsConnected(true);
         
         // Join user's personal room
         if (user?._id) {
           socket.emit('join_room', user._id);
-          console.log(`🔌 User ${user._id} joined room: user_${user._id}`);
         }
       });
 
       socket.on('disconnect', () => {
-        console.log('Disconnected from server');
         setIsConnected(false);
       });
 
       socket.on('connect_error', (error) => {
-        console.error('🔌 Socket connection error:', error);
-        console.error('🔌 Error details:', {
-          message: error.message,
-          type: error.type,
-          description: error.description
-        });
         setIsConnected(false);
       });
 
       socket.on('error', (error) => {
-        console.error('🔌 Socket error event:', error);
+        // Handle socket errors silently
       });
 
       socket.on('reconnect_attempt', (attemptNumber) => {
-        console.log('🔌 Reconnection attempt:', attemptNumber);
+        // Handle reconnection attempts silently
       });
 
       socket.on('reconnect_failed', () => {
-        console.error('🔌 Reconnection failed');
+        // Handle reconnection failures silently
       });
 
       // Note: Notifications are handled by SocketConnector component
@@ -70,7 +56,6 @@ export const SocketProvider = ({ children, socket }) => {
       // Cleanup on unmount
       return () => {
         // Don't disconnect here since socket is managed in App.js
-        console.log('🔌 SocketContext: Cleaning up socket listeners');
       };
     }
   }, [socket, isAuthenticated, user?._id]);

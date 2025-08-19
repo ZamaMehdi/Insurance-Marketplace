@@ -63,8 +63,6 @@ const BidSubmission = () => {
 
   const fetchInsuranceRequest = async () => {
     try {
-      console.log('BidSubmission: Loading insurance request in mock mode');
-      
       // Since we have static users, just use mock data
       const mockRequest = {
         _id: requestId,
@@ -221,8 +219,6 @@ const BidSubmission = () => {
     setIsLoading(true);
     
     try {
-      console.log('BidSubmission: Submitting bid in mock mode');
-      
       // Since we have static users, just use mock response
       toast.success('Bid submitted successfully!');
       navigate('/dashboard');

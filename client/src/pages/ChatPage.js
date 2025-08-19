@@ -28,12 +28,20 @@ const ChatPage = () => {
       
       // Get chat room details using apiService
       const result = await apiService.getChatRoom(chatId);
+      
+      if (!result.success || !result.data) {
+        throw new Error('Failed to load chat room data');
+      }
+      
       const room = result.data;
       setChatRoom(room);
       
       // Find the other participant
-      const otherParticipant = room.participants.find(p => p._id !== user._id);
+      const userId = user?._id || user?.user?._id;
+      const otherParticipant = room.participants?.find(p => p._id !== userId);
       setOtherUser(otherParticipant);
+      
+
       
     } catch (error) {
       console.error('Error loading chat room:', error);
@@ -105,6 +113,7 @@ const ChatPage = () => {
         <ChatInterface
           isOpen={true}
           onClose={() => navigate('/dashboard')}
+          chatRoom={chatRoom}
           requestId={chatRoom.requestId?._id || chatRoom.requestId}
           otherUserId={otherUser?._id}
           otherUserName={otherUser?.profile?.firstName || otherUser?.profile?.companyName || 'User'}

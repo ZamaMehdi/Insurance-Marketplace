@@ -179,17 +179,8 @@ router.post('/rooms/:roomId/messages', protect, async (req, res) => {
     await chatRoom.save();
 
     // Create persistent notification for the recipient
-    console.log('🔔 Attempting to create chat notification...');
-    console.log('🔔 Notification data:', {
-      recipientId: recipientId,
-      senderId: req.user._id,
-      chatRoomId: roomId,
-      requestId: chatRoom.requestId,
-      senderName: req.user.profile?.firstName || req.user.profile?.companyName || 'User'
-    });
-    
     try {
-      const notification = await NotificationService.createChatNotification('new_message', {
+      await NotificationService.createChatNotification('new_message', {
         recipientId: recipientId,
         senderId: req.user._id,
         chatRoomId: roomId,
@@ -200,13 +191,8 @@ router.post('/rooms/:roomId/messages', protect, async (req, res) => {
           roomId: roomId
         }
       });
-      console.log('✅ Chat notification created successfully:', notification._id);
     } catch (notificationError) {
       console.error('❌ Error creating chat notification:', notificationError);
-      console.error('❌ Error details:', {
-        message: notificationError.message,
-        stack: notificationError.stack
-      });
       // Don't fail the message sending if notification fails
     }
 
@@ -216,8 +202,6 @@ router.post('/rooms/:roomId/messages', protect, async (req, res) => {
     // Emit WebSocket notification to recipient
     if (req.app.get('io')) {
       const io = req.app.get('io');
-      
-      console.log('🔔 Emitting notifications to user:', recipientId);
       
       // Emit new message event
       io.to(`user_${recipientId}`).emit('new_message', {
@@ -243,10 +227,6 @@ router.post('/rooms/:roomId/messages', protect, async (req, res) => {
           timestamp: new Date()
         }
       });
-      
-      console.log('✅ Notifications emitted successfully');
-    } else {
-      console.log('❌ Socket.io not available for notifications');
     }
     
     res.json({

@@ -18,7 +18,8 @@ import {
   CheckCircle,
   Eye,
   Send,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ChatInterface from '../components/ChatInterface';
@@ -69,8 +70,10 @@ const BrowseRequests = () => {
   ];
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (user) {
+      fetchRequests();
+    }
+  }, [user]);
 
   // Debug: Log requests state changes
   useEffect(() => {
@@ -101,6 +104,13 @@ const BrowseRequests = () => {
       setLoading(true);
       // console.log('BrowseRequests: Loading available requests from MongoDB API');
       
+      // Check if user is authenticated before making the request
+      if (!user) {
+        toast.error('Please log in to view available requests');
+        setRequests([]);
+        return;
+      }
+      
       // Get requests from MongoDB API - use provider-specific endpoint
       const response = await apiService.getProviderAvailableRequests({
         limit: 50
@@ -118,7 +128,15 @@ const BrowseRequests = () => {
       
     } catch (error) {
       console.error('Error loading requests:', error);
-      toast.error('Failed to load requests. Please try again.');
+      
+      // Handle authentication errors specifically
+      if (error.message.includes('Authentication required') || error.message.includes('log in again')) {
+        toast.error('Please log in again to continue');
+        // The AuthContext will handle the logout automatically
+      } else {
+        toast.error('Failed to load requests. Please try again.');
+      }
+      
       setRequests([]);
     } finally {
       setLoading(false);
@@ -364,13 +382,20 @@ const BrowseRequests = () => {
     return `${minutes}m`;
   };
 
-  // No need to check authentication - user is always available
+  // Check if user is authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading user data...</p>
+          <Shield className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
+          <p className="text-gray-600 mb-4">Please log in to view available insurance requests.</p>
+          <button
+            onClick={() => window.location.href = '/login'}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     );
@@ -389,8 +414,36 @@ const BrowseRequests = () => {
           </p>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading available requests...</p>
+            </div>
+          </div>
+        )}
+
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          {/* Error State with Retry Button */}
+          {!loading && requests.length === 0 && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-center">
+                <Shield className="h-12 w-12 text-red-400 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-red-800 mb-2">No Requests Available</h3>
+                <p className="text-red-600 mb-4">Unable to load insurance requests. This might be due to authentication issues or network problems.</p>
+                <button
+                  onClick={fetchRequests}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search Bar */}
             <div className="lg:col-span-2 relative">
@@ -443,45 +496,6 @@ const BrowseRequests = () => {
               onChange={(e) => setSelectedLocation(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            
-            {/* Debug Button */}
-            <button
-              onClick={() => {
-                console.log('=== Debug Info ===');
-                apiService.debugStore();
-                console.log('Current user:', user);
-                console.log('Current requests state:', requests);
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Debug Store
-            </button>
-            
-            {/* Reset Store Button */}
-            <button
-              onClick={() => {
-                if (window.confirm('This will reset all data and reload sample data. Continue?')) {
-                  apiService.resetStore();
-                  fetchRequests();
-                  toast.success('Store reset complete. Sample data loaded.');
-                }
-              }}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Reset Store
-            </button>
-            
-            {/* Force Reload Button */}
-            <button
-              onClick={() => {
-                apiService.forceReloadFromStorage();
-                fetchRequests();
-                toast.success('Data force reloaded from localStorage.');
-              }}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-            >
-              Force Reload
-            </button>
           </div>
         </div>
 

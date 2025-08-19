@@ -12,7 +12,9 @@ import {
   MessageSquare,
   MessageCircle,
   Eye,
-  CheckCircle
+  CheckCircle,
+  Users,
+  Star
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -102,7 +104,7 @@ const Dashboard = () => {
   };
 
   const loadDashboardData = async () => {
-    // console.log('🚀 loadDashboardData function called!');
+    // console.log(' loadDashboardData function called!');
     
     // Prevent duplicate calls using ref instead of state
     if (isLoadingRef.current) {
@@ -121,10 +123,7 @@ const Dashboard = () => {
     setIsLoading(true);
 
     try {
-      // console.log('🚀 Dashboard: Starting to load dashboard data...');
-      // console.log('Dashboard: Loading dashboard data for user:', user);
-      // console.log('Dashboard: Dashboard: User object structure:', JSON.stringify(user, null, 2));
-      // console.log('Dashboard: User ID:', user?._id, 'User.user ID:', user?.user?._id);
+
       
       // Get the actual user ID from the nested structure
       const userId = user?.user?._id || user?._id;
@@ -140,8 +139,28 @@ const Dashboard = () => {
 
       
       // Fetch statistics
-      const statsRes = await apiService.getUserDashboardStats(userId);
-      setStats(statsRes.data || {});
+      let statsRes;
+      if (user?.role === 'provider') {
+        // For providers: get provider-specific dashboard stats
+        statsRes = await apiService.getProviderDashboardStats(userId);
+        // Transform the data to match the expected format
+        const providerStats = statsRes.data || {};
+        setStats({
+          activeItems: providerStats.activeOffers || 0,
+          totalBids: providerStats.totalBids || 0,
+          pendingActions: providerStats.pendingBids || 0,
+          totalCoverage: providerStats.totalCoverage || 0,
+          totalMonthlyPremium: providerStats.totalMonthlyPremium || 0,
+          totalOffers: providerStats.totalOffers || 0,
+          viewCount: providerStats.viewCount || 0,
+          inquiryCount: providerStats.inquiryCount || 0,
+          averageRating: providerStats.averageRating || 0
+        });
+      } else {
+        // For clients: get regular dashboard stats
+        statsRes = await apiService.getUserDashboardStats(userId);
+        setStats(statsRes.data || {});
+      }
 
       // Fetch recent requests
       let requestsRes;
@@ -159,9 +178,17 @@ const Dashboard = () => {
       const bidsRes = await apiService.getUserBids(userId, 5, user?.role);
       setRecentBids(bidsRes.data || []);
 
-      // Fetch recent chats
+      // Fetch recent chats - ensure no duplicates
       const chatsRes = await apiService.getUserChatRooms(userId, 3);
-      setRecentChats(chatsRes.data || []);
+      if (chatsRes.success && chatsRes.data) {
+        // Remove duplicates based on chat room ID
+        const uniqueChats = chatsRes.data.filter((chat, index, self) => 
+          index === self.findIndex(c => c._id === chat._id)
+        );
+        setRecentChats(uniqueChats);
+      } else {
+        setRecentChats([]);
+      }
 
       // Fetch unread message count
       const unreadCountRes = await apiService.getUserUnreadMessageCount(userId);
@@ -313,22 +340,13 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-            <div>
-            <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.user?.profile?.firstName || 'User'}!</h1>
-            <p className="text-gray-600 mt-2">
-              {user?.role === 'provider' 
-                ? "Here's what's happening with your insurance offers and bids" 
-                : "Here's what's happening with your insurance requests"
-              }
-            </p>
-            </div>
+        <div className="flex justify-end mb-6">
           <div className="flex gap-3">
-                <button
+            <button
               onClick={() => {
                 if (user?.role === 'provider') {
                   // Navigate to post offer page for providers
-                  navigate('/post-insurance-offer');
+                  navigate('/post-offer');
                 } else {
                   // Navigate to create request page for clients
                   navigate('/insurance-request/new');
@@ -337,9 +355,90 @@ const Dashboard = () => {
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
               {user?.role === 'provider' ? '📝 Post Offer' : '+ New Request'}
-                </button>
+            </button>
           </div>
         </div>
+
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.profile?.firstName || 'User'}!</h1>
+              <p className="text-gray-600">Here's what's happening with your insurance offers and bids</p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={loadDashboardData}
+                disabled={isLoading}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center space-x-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>{isLoading ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
+              {user?.role === 'provider' && (
+                <button
+                  onClick={() => navigate('/post-offer')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Post Offer</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Provider Actions */}
+        {user?.role === 'provider' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <Link
+              to="/post-offer"
+              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-blue-500"
+            >
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Plus className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Post Insurance Offer</h3>
+                  <p className="text-gray-600">Create and publish new insurance offers</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              to="/collaborative-offer"
+              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-green-500"
+            >
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Collaborative Offer</h3>
+                  <p className="text-gray-600">Work with other providers on joint offers</p>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              to="/browse-requests"
+              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-purple-500"
+            >
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Eye className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Browse Requests</h3>
+                  <p className="text-gray-600">Find insurance requests to bid on</p>
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -353,6 +452,9 @@ const Dashboard = () => {
                   {user.role === 'provider' ? 'Active Offers' : 'Active Requests'}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">{stats.activeItems || 0}</p>
+                {user.role === 'provider' && stats.totalOffers > 0 && (
+                  <p className="text-xs text-gray-500">Total: {stats.totalOffers}</p>
+                )}
               </div>
             </div>
           </div>
@@ -377,7 +479,9 @@ const Dashboard = () => {
                 <Clock className="h-6 w-6 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Actions</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {user.role === 'provider' ? 'Pending Bids' : 'Pending Actions'}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">{stats.pendingActions || 0}</p>
               </div>
             </div>
@@ -390,15 +494,59 @@ const Dashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">
-                  {user.role === 'provider' ? 'Total Value' : 'Total Coverage'}
+                  {user.role === 'provider' ? 'Total Coverage' : 'Total Coverage'}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(stats.totalCoverage || 0)}
                 </p>
+                {user.role === 'provider' && stats.totalMonthlyPremium > 0 && (
+                  <p className="text-xs text-gray-500">Monthly: {formatCurrency(stats.totalMonthlyPremium || 0)}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Additional Provider Statistics */}
+        {user?.role === 'provider' && (stats.viewCount > 0 || stats.inquiryCount > 0 || stats.averageRating > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <Eye className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Views</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.viewCount || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-pink-100 rounded-lg">
+                  <MessageSquare className="h-6 w-6 text-pink-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Inquiries</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.inquiryCount || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Star className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Average Rating</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.averageRating ? stats.averageRating.toFixed(1) : '0.0'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -447,11 +595,11 @@ const Dashboard = () => {
                 {recentChats.slice(0, 3).map((chat) => {
                   const lastMessage = chat.lastMessage || {};
                   const userId = user?.user?._id || user?._id;
-                  const otherParticipant = chat.participants?.find(id => id !== userId) || {};
+                  const otherParticipant = chat.participants?.find(p => p._id !== userId) || {};
                   const isUnread = lastMessage && !lastMessage.read && lastMessage.senderId !== userId;
                   
                   // Get provider name from the chat data
-                  let providerName = 'Provider';
+                  let providerName = 'Unknown User';
                   if (chat.participants && Array.isArray(chat.participants)) {
                     const otherParticipant = chat.participants.find(p => p._id !== userId);
                     if (otherParticipant) {

@@ -24,25 +24,20 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
   const messagesEndRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
 
-  useEffect(() => {
-    console.log('🔄 ChatInterface: useEffect triggered with:', {
-      chatRoom: chatRoom?._id,
-      requestId,
-      otherUserId,
-      isOpen,
-      user: user?._id
-    });
-    
+    useEffect(() => {
     // If we already have a chat room (e.g., from ChatPage), load messages directly
     if (chatRoom && chatRoom._id) {
-      console.log('✅ ChatInterface: Using existing chat room, loading messages');
       loadMessages(chatRoom._id);
+      return;
+    }
+    
+    // If we're in ChatPage mode (have chatRoom from props), don't initialize new chat
+    if (chatRoom && !requestId && !otherUserId) {
       return;
     }
     
     // If we have requestId and otherUserId but no chat room, initialize new chat
     if (isOpen && requestId && user && !chatRoom) {
-      console.log('🆕 ChatInterface: Initializing new chat');
       initializeChat();
     }
   }, [isOpen, requestId, otherUserId, user, chatRoom]);
@@ -94,18 +89,22 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
 
   const loadMessages = async (roomId) => {
     try {
-      console.log('🔄 ChatInterface: Loading messages for room:', roomId);
       const result = await apiService.getChatMessages(roomId);
-      console.log('📨 ChatInterface: API response:', result);
-      console.log('📨 ChatInterface: Messages data:', result.data);
-      console.log('👤 ChatInterface: Current user:', user);
-      console.log('🔍 ChatInterface: Message sender IDs:', result.data?.map(m => m.senderId));
       
-      if (result.data && Array.isArray(result.data)) {
-        setMessages(result.data);
-        console.log('✅ ChatInterface: Messages set successfully, count:', result.data.length);
+      if (result.success && result.data && Array.isArray(result.data)) {
+        // Transform messages to ensure they have the correct structure
+        const transformedMessages = result.data.map(msg => ({
+          _id: msg._id || msg.id,
+          roomId: msg.roomId || roomId,
+          senderId: msg.senderId || msg.sender,
+          content: msg.content || msg.message || msg.text,
+          timestamp: msg.timestamp || msg.createdAt,
+          read: msg.read || false,
+          messageType: msg.messageType || 'text'
+        }));
+        
+        setMessages(transformedMessages);
       } else {
-        console.log('⚠️ ChatInterface: No messages data or invalid format');
         setMessages([]);
       }
     } catch (error) {
@@ -117,6 +116,7 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
 
   const handleNewMessage = (data) => {
     if (data.roomId === chatRoom?._id) {
+      const currentUserId = user?._id || user?.user?._id;
       const newMsg = {
         _id: data.messageId,
         roomId: data.roomId,
@@ -129,17 +129,15 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
       setMessages(prev => [...prev, newMsg]);
       
       // Mark as read if we're the recipient
-      if (data.senderId !== user._id) {
-        // mockDataStore.markMessagesAsRead(chatRoom._id, user._id); // Removed MockDataStore
+      if (data.senderId !== currentUserId) {
+        // mockDataStore.markMessagesAsRead(chatRoom._id, currentUserId); // Removed MockDataStore
       }
     }
   };
 
   const handleChatNotification = (data) => {
-    console.log('🔔 ChatInterface: Received chat_notification:', data);
     // Show toast notification for new chat message
     if (data.type === 'new_message') {
-      console.log('💬 ChatInterface: Showing toast notification for new message');
       toast.success(`${data.title}: ${data.message}`, {
         duration: 5000,
         icon: '💬',
@@ -155,13 +153,15 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
   };
 
   const handleUserTyping = (data) => {
-    if (data.roomId === chatRoom?._id && data.userId !== user._id) {
+    const currentUserId = user?._id || user?.user?._id;
+    if (data.roomId === chatRoom?._id && data.userId !== currentUserId) {
       setIsTyping(true);
     }
   };
 
   const handleUserStopTyping = (data) => {
-    if (data.roomId === chatRoom?._id && data.userId !== user._id) {
+    const currentUserId = user?._id || user?.user?._id;
+    if (data.roomId === chatRoom?._id && data.userId !== currentUserId) {
       setIsTyping(false);
     }
   };
@@ -174,6 +174,11 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
     try {
       // Send message through API
       const result = await apiService.sendMessage(chatRoom._id, newMessage.trim());
+      
+      if (!result.success || !result.data) {
+        throw new Error('Failed to send message');
+      }
+      
       const message = result.data;
       
       // Add message to local state
@@ -182,7 +187,8 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
       
       // Emit typing stop
       if (socket) {
-        socket.emit('stop_typing', { roomId: chatRoom._id, userId: user._id });
+        const currentUserId = user?._id || user?.user?._id;
+        socket.emit('stop_typing', { roomId: chatRoom._id, userId: currentUserId });
       }
       
     } catch (error) {
@@ -196,11 +202,12 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
     
     // Emit typing indicator
     if (socket && chatRoom) {
-      socket.emit('typing', { roomId: chatRoom._id, userId: user._id });
+      const currentUserId = user?._id || user?.user?._id;
+      socket.emit('typing', { roomId: chatRoom._id, userId: currentUserId });
       
       // Stop typing indicator after 2 seconds
       setTimeout(() => {
-        socket.emit('stop_typing', { roomId: chatRoom._id, userId: user._id });
+        socket.emit('stop_typing', { roomId: chatRoom._id, userId: currentUserId });
       }, 2000);
     }
   };
@@ -291,27 +298,14 @@ const ChatInterface = ({ isOpen, onClose, requestId, otherUserId, otherUserName,
             </div>
           ) : (
             <>
-              {console.log('🔍 ChatInterface: Messages state:', messages, 'Count:', messages.length)}
               {messages.map((message, index) => {
                 // Determine if message is from current user or other user
                 // Handle both string and ObjectId comparisons
-                // message.senderId is an object with _id field, not a direct string
-                const messageSenderId = message.senderId._id || message.senderId;
-                const isOwnMessage = String(messageSenderId) === String(user._id);
+                const currentUserId = user?._id || user?.user?._id;
+                const messageSenderId = message.senderId?._id || message.senderId;
+                const isOwnMessage = String(messageSenderId) === String(currentUserId);
                 
-                // Debug: Log message data
-                console.log('💬 Message Debug:', {
-                  messageId: message._id,
-                  content: message.content,
-                  messageSenderId: message.senderId,
-                  messageSenderIdType: typeof message.senderId,
-                  actualSenderId: messageSenderId,
-                  currentUserId: user._id,
-                  currentUserIdType: typeof user._id,
-                  isOwnMessage,
-                  comparison: messageSenderId === user._id,
-                  stringComparison: String(messageSenderId) === String(user._id)
-                });
+
                 
                 // Try to get timestamp from multiple possible fields
                 const messageTimestamp = message.timestamp || message.createdAt || message.sentAt || new Date();

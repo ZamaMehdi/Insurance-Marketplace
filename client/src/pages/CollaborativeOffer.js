@@ -20,58 +20,82 @@ import {
   Handshake
 } from 'lucide-react';
 
+// Main component for creating collaborative insurance offers
+// This allows multiple providers to work together on complex insurance deals
 const CollaborativeOffer = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // State management - keeping it simple for now
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Helper function to get user display name
+  // Helper function to extract user names from various object structures
+  // Had some issues with inconsistent user object formats, so this handles all cases
   const getUserDisplayName = (userObj) => {
     if (!userObj) return 'Unknown User';
     
+    // Company name takes priority for business users
     if (userObj.profile?.companyName) {
       return userObj.profile.companyName;
-    } else if (userObj.profile?.firstName && userObj.profile?.lastName) {
+    } 
+    // Full name if available
+    else if (userObj.profile?.firstName && userObj.profile?.lastName) {
       return `${userObj.profile.firstName} ${userObj.profile.lastName}`;
-    } else if (userObj.profile?.firstName) {
+    } 
+    // Just first name
+    else if (userObj.profile?.firstName) {
       return userObj.profile.firstName;
-    } else if (userObj.email) {
-      return userObj.email.split('@')[0]; // Use email prefix as fallback
-    } else {
-      return 'Current Provider'; // Final fallback
+    } 
+    // Fallback to email prefix
+    else if (userObj.email) {
+      return userObj.email.split('@')[0];
+    } 
+    // Last resort
+    else {
+      return 'Current Provider';
     }
   };
 
+  // Form state - this got pretty complex with all the insurance fields
+  // TODO: Consider breaking this into smaller components later
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'health',
+    category: 'health', // Default to health since that's what most users want
     subcategory: '',
+    
+    // Coverage details - these are the core insurance parameters
     coverageDetails: {
-      minAmount: 100000,
-      maxAmount: 1000000,
+      minAmount: 100000, // Starting point - can be adjusted
+      maxAmount: 1000000, // Reasonable upper limit
       currency: 'USD',
       deductible: '',
       coPay: '',
       maxOutOfPocket: ''
     },
+    
+    // Terms and conditions - the fine print
     terms: {
-      duration: '1 year',
+      duration: '1 year', // Standard duration
       waitingPeriod: '',
       exclusions: [''],
       inclusions: [''],
       specialConditions: ['']
     },
+    
+    // Pricing structure
     pricing: {
       basePremium: '',
       currency: 'USD',
-      paymentFrequency: 'monthly',
+      paymentFrequency: 'monthly', // Most common choice
       discounts: [{ type: '', percentage: '' }]
     },
+    
+    // Who can apply for this insurance
     eligibility: {
       minAge: '',
       maxAge: '',
@@ -80,22 +104,31 @@ const CollaborativeOffer = () => {
       healthRequirements: [''],
       occupationRestrictions: ['']
     },
-    features: [{ name: '24/7 Customer Support', description: 'Round-the-clock customer service and support', included: true }],
+    
+    // Features and benefits
+    features: [{ 
+      name: '24/7 Customer Support', 
+      description: 'Round-the-clock customer service and support', 
+      included: true 
+    }],
     highlights: [''],
     tags: [''],
     isPublic: false,
+    
+    // Collaboration settings - this is the main feature
     collaboration: {
       isCollaborative: true,
       providers: [],
       leadProvider: '',
       partnershipAgreement: '',
-      collaborationType: 'partnership',
+      collaborationType: 'partnership', // Could be 'joint_venture' or 'referral' later
       totalCoveragePercentage: 100,
       isFullyCovered: true
     }
   });
 
-  // All hooks must be called before any conditional returns
+  // Auto-set current user as lead provider when component mounts
+  // This was tricky - had to handle different user object structures
   useEffect(() => {
     // Set the current user as the lead provider and add them to providers list
     if (user && !formData.collaboration.leadProvider) {
@@ -126,20 +159,22 @@ const CollaborativeOffer = () => {
   }, [user, formData.collaboration.leadProvider]);
 
   // Auto-normalize percentages when providers change
+  // This keeps the math consistent across all providers
   useEffect(() => {
     if (formData.collaboration.providers.length > 0) {
       normalizePercentages();
     }
   }, [formData.collaboration.providers.length]);
 
-  // Ensure current user is always in providers list
+  // Safety check - ensure current user is always in providers list
+  // Had a bug where users could accidentally remove themselves
   useEffect(() => {
     if (user && formData.collaboration.leadProvider && formData.collaboration.providers.length > 0) {
       const currentUserId = user._id || user.user?._id;
       const isUserInProviders = formData.collaboration.providers.some(p => p.providerId === currentUserId);
       
-             if (!isUserInProviders) {
-         const currentUserName = getUserDisplayName(user);
+      if (!isUserInProviders) {
+        const currentUserName = getUserDisplayName(user);
         
         setFormData(prev => ({
           ...prev,

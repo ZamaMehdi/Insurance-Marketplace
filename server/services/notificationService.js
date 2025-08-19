@@ -1,8 +1,11 @@
 const Notification = require('../models/Notification.model');
 
+// Service class for handling all notification-related operations
+// This centralizes the notification logic and makes it easier to maintain
 class NotificationService {
   /**
    * Create a new notification
+   * This is the base method that other notification types use
    */
   static async createNotification(data) {
     try {
@@ -16,8 +19,10 @@ class NotificationService {
 
   /**
    * Create bid-related notifications
+   * Handles all the different types of bid notifications (received, accepted, rejected, etc.)
    */
   static async createBidNotification(type, data) {
+    // Build the base notification data structure
     const notificationData = {
       recipientId: data.recipientId,
       senderId: data.senderId,
@@ -31,6 +36,8 @@ class NotificationService {
       }
     };
 
+    // Handle different bid notification types
+    // Each type has different messaging and priority levels
     switch (type) {
       case 'bid_received':
         notificationData.title = 'New Bid Received';

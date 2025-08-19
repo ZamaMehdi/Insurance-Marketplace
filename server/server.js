@@ -1,4 +1,5 @@
-// server/server.js
+// Main server file for the insurance marketplace API
+// This handles all the backend logic, WebSocket connections, and security
 const express = require('express');
 const mongoose = require('mongoose');
 const http = require('http');
@@ -89,23 +90,26 @@ app.use(limiter);
 const PORT = process.env.PORT || 5002;
 const MONGO_URI = process.env.MONGODB_URI;
 
-// MongoDB Connection
+// MongoDB Connection - using the newer connection options
+// Had some deprecation warnings with the old ones
 mongoose.connect(MONGO_URI, { 
   useNewUrlParser: true, 
   useUnifiedTopology: true 
 })
 .then(() => {
   // MongoDB connected successfully
+  // Could add some startup logging here if needed
 })
 .catch(err => {
   console.error('MongoDB Connection Error:', err);
-  process.exit(1);
+  process.exit(1); // Exit if we can't connect to the database
 });
 
 // Make Socket.io available to routes
 app.set('io', io);
 
-// Routes
+// API Routes - organized by feature
+// Each route file handles a specific part of the business logic
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/requests', require('./routes/insuranceRequest.routes'));
@@ -121,7 +125,7 @@ app.use('/api/accepted-offers', require('./routes/acceptedOffer.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/kyc', require('./routes/kyc.routes'));
 
-// Basic Routes
+// Basic Routes - simple endpoints for health checks and info
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Insurance Marketplace API is running...',
@@ -130,7 +134,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint for Railway
+// Health check endpoint for Railway deployment
+// This helps with monitoring and auto-scaling
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy',
@@ -140,7 +145,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Test socket endpoint
+// Test socket endpoint - useful for debugging WebSocket issues
 app.get('/socket-test', (req, res) => {
   res.json({ 
     message: 'Socket test endpoint',
@@ -149,7 +154,8 @@ app.get('/socket-test', (req, res) => {
   });
 });
 
-// Socket.io info endpoint
+// Socket.io info endpoint - shows current connection status
+// Helpful for monitoring in development
 app.get('/socket-info', (req, res) => {
   res.json({
     message: 'Socket.io server info',
@@ -162,20 +168,23 @@ app.get('/socket-info', (req, res) => {
   });
 });
 
-// Socket.io Connection
+// Socket.io Connection - handles real-time communication
 io.on('connection', (socket) => {
   // Join user to their room for private messages
+  // Each user gets their own room for targeted notifications
   socket.on('join_room', (userId) => {
     socket.join(`user_${userId}`);
   });
 
   // Join user to their personal room for notifications
+  // This is separate from chat rooms for better organization
   socket.on('join_user_room', (data) => {
     const { userId } = data;
     socket.join(`user_${userId}`);
   });
 
-  // Test notification handler
+  // Test notification handler - useful for debugging
+  // Clients can send this to verify their connection is working
   socket.on('test_notification', (data) => {
     // Send back a test notification
     socket.emit('test_notification_response', { 
@@ -184,31 +193,36 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle new insurance requests
+  // Handle new insurance requests - broadcast to all providers
+  // This allows providers to see new opportunities in real-time
   socket.on('new_insurance_request', (data) => {
     // Broadcast to all insurance providers
     io.emit('insurance_request_notification', data);
   });
 
-  // Handle new bids
+  // Handle new bids - notify clients when they receive bids
+  // Clients need to know quickly when providers are interested
   socket.on('new_bid', (data) => {
     // Notify the client about the new bid
     io.to(`user_${data.clientId}`).emit('bid_notification', data);
   });
 
-  // Handle bid acceptance
+  // Handle bid acceptance - notify providers when their bid is accepted
+  // Providers want immediate feedback on their proposals
   socket.on('bid_accepted', (data) => {
     // Notify the provider about the accepted bid
     io.to(`user_${data.providerId}`).emit('bid_accepted_notification', data);
   });
 
-  // Handle chat messages
+  // Handle chat messages - real-time messaging between users
+  // Messages are sent to specific user rooms for privacy
   socket.on('send_message', (data) => {
     // Send to specific user room
     io.to(`user_${data.recipientId}`).emit('new_message', data);
   });
 
-  // Handle typing indicators
+  // Handle typing indicators - shows when someone is typing
+  // This improves the chat experience significantly
   socket.on('typing', (data) => {
     // Broadcast typing indicator to other users in the room
     socket.broadcast.to(`user_${data.recipientId}`).emit('user_typing', data);
@@ -219,7 +233,8 @@ io.on('connection', (socket) => {
     socket.broadcast.to(`user_${data.recipientId}`).emit('user_stop_typing', data);
   });
 
-  // Handle offer notifications
+  // Handle offer notifications - broadcast new offers to providers
+  // Providers can see new opportunities as they're posted
   socket.on('new_offer', (data) => {
     // Broadcast to insurance providers
     io.emit('offer_notification', data);
@@ -227,10 +242,12 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     // Handle user disconnection
+    // Could add cleanup logic here if needed
+    // For now, just let the connection close naturally
   });
 });
 
-// Error handling middleware
+// Error handling middleware - catches any errors that weren't handled
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ 
@@ -239,13 +256,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - catch any routes that don't exist
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
 server.listen(PORT, () => {
   // Server started successfully
+  // Could add some startup logging here if needed
 });
 
 module.exports = { app, server, io };

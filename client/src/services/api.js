@@ -1,29 +1,23 @@
 // API service for communicating with MongoDB backend
+// This handles all the HTTP requests and authentication
 const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5002') + '/api';
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    // Could add retry logic here later if needed
   }
 
   // Get auth token from localStorage
   getAuthToken() {
     const token = localStorage.getItem('insurance_token');
-    // console.log('🔍 Getting auth token:', {
-    //   hasToken: !!token,
-    //   tokenLength: token ? token.length : 0,
-    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-    // });
+    // Removed debug logs - was getting too noisy in console
     return token;
   }
 
   // Set auth token in localStorage
   setAuthToken(token) {
-    // console.log('🔍 Setting auth token:', {
-    //   hasToken: !!token,
-    //   tokenLength: token ? token.length : 0,
-    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-    // });
+    // Store the JWT token for authenticated requests
     localStorage.setItem('insurance_token', token);
   }
 
@@ -40,18 +34,12 @@ class ApiService {
     }));
   }
 
-  // Generic request method
+  // Generic request method - handles all HTTP requests
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const token = this.getAuthToken();
     
-    // console.log('🔍 API Request Debug:', {
-    //   endpoint,
-    //   hasToken: !!token,
-    //   tokenLength: token ? token.length : 0,
-    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-    // });
-    
+    // Build request configuration
     const config = {
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -61,16 +49,10 @@ class ApiService {
     };
 
     // Only set Content-Type for non-FormData requests
+    // This was causing issues with file uploads
     if (!(options.body instanceof FormData)) {
       config.headers['Content-Type'] = 'application/json';
     }
-
-    // console.log('🔍 Request Config:', {
-    //   url,
-    //   method: config.method || 'GET',
-    //   headers: config.headers,
-    //   hasBody: !!config.body
-    // });
 
     try {
       const response = await fetch(url, config);
